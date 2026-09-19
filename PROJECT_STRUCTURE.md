@@ -47,6 +47,8 @@ Daily-Speak/
 ├── gradle/
 │   ├── libs.versions.toml
 │   └── wrapper/
+├── scripts/
+│   └── build.ps1                              # 使用仓库外工具链构建与测试
 ├── build.gradle.kts
 ├── settings.gradle.kts
 ├── local.properties.example
@@ -64,6 +66,10 @@ Daily-Speak/
 ├── android-sdk/
 ├── android-user-home/
 ├── gradle-user-home/
+├── gradle-project-cache/
+│   └── Daily-Speak/
+├── kotlin-project-cache/
+│   └── Daily-Speak/
 └── jdk-24/
 ```
 
@@ -106,7 +112,7 @@ flowchart LR
     RV --> REVIEW[Review UI]
 ```
 
-## 4. 目标 DeepSeek 数据流
+## 4. DeepSeek 数据流（用户确认后按需调用）
 
 ```mermaid
 flowchart TD

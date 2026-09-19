@@ -33,7 +33,7 @@ Core: Audio / Speech / TTS / DI
 - `SpeechRecognizerService`：`SystemSpeechRecognizerService` 提供 Android 12+ 文件来源适配器，失败时抛出可恢复错误。
 - `PronunciationEvaluator`：`DefaultPronunciationEvaluator` 使用识别置信度和 PCM 音频特征做粗略评分。
 - `TtsService`：`AndroidTtsService` 按美音或英音朗读问题/参考回答。
-- `DeepSeekService`：`DeepSeekServiceImpl` 已封装动态出题、翻译、参考回答、答案评价和改善建议请求，但尚未接入今日页和反馈页自动调用链。
+- `DeepSeekService`：`DeepSeekServiceImpl` 封装动态出题、翻译、参考回答、答案评价和改善建议请求；今日页和反馈页仅在用户明确确认后按需调用，失败时保留本地数据。
 - Hilt 模块：`DatabaseModule`、`RepositoryModule`、`SettingsModule`、`AudioModule`、`SpeechModule`、`NetworkModule`。
 - 数据库当前使用 `fallbackToDestructiveMigration(dropAllTables = true)`；schema 已导出，正式发布前必须补 Migration。
 
@@ -95,7 +95,7 @@ interface DeepSeekService {
 }
 ```
 
-接入 Today/Feedback UI 时应遵循以下顺序：
+Today/Feedback UI 当前遵循以下顺序：
 
 1. 优先读取 Room 缓存和本地题库。
 2. 只有用户主动启用云端 AI 并确认发送内容后，才调用 DeepSeek。
@@ -121,7 +121,7 @@ Android `SpeechRecognizer` 的基础公开 API 不提供所有设备都可用的
 
 ## 7. 隐私与安全
 
-- 录音存放到 `context.filesDir/recordings`，默认不上传。
+- 录音存放到 `context.filesDir/recordings`，默认不上传，也不会发送给 DeepSeek。
 - 云调用前显示数据发送说明并取得用户确认。
 - `local.properties` 与 DataStore 中的 Key 均不得写入日志。
 - 正式版应将 API Key 迁移到 Android Keystore 加密存储。

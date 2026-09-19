@@ -13,17 +13,18 @@ Daily-Speak 是一个以“每日一问 + 录音回答 + 反馈复习”为核�
 - 默认 `PronunciationEvaluator` 使用识别置信度、音量、停顿、语速和动态范围做粗略评分。
 - 录音完成后保存 Attempt，生成本地基础反馈，并打开反馈页。
 - 反馈页支持折叠卡片、评分展示、参考回答 TTS、重录、下一题和收藏。
+- 今日页支持在用户确认后调用 DeepSeek 动态出题，并将结果缓存到 Room。
+- 反馈页支持在用户确认后发送转写文本和本地评分，生成 AI 改善建议；录音文件不会上传。
 - 复习页支持低分题、收藏题、历史记录以及日期、话题、难度筛选。
 
 ## 尚未接入或仍需完善
 
-- `DeepSeekService` 已完成 Retrofit 封装，但尚未接入“今日自动出题”和“回答后云端反馈”的 UI 编排。
-- DeepSeek 模型名、接口路径和请求格式仍需以官方文档和真实账号联调结果为准。
+- DeepSeek 的动态出题和反馈建议已接入 UI 编排，但模型名、接口路径和请求格式仍需以官方文档和真实账号联调结果为准。
 - Android `SpeechRecognizer` 的音频文件来源能力依赖 Android 12+ 和设备上的识别服务，需要在红米 K60 真机验证。
 - 默认发音评分是粗略估算，不宣称为音素级评测；云端评测接口仍待实现。
 - 每日提醒通知、连续打卡计算、数据导出/清除尚未实现。
 - API Key 当前使用 DataStore 保存本机覆盖值，正式发布前应迁移到 Android Keystore。
-- 当前没有云音频上传；后续发送转写或音频前必须增加明确授权提示。
+- 当前没有云音频上传；发送转写文本前必须再次取得明确授权，录音文件不会发送给 DeepSeek。
 
 ## 项目文档
 
@@ -47,6 +48,8 @@ D:\github\The-HAN\Daily-speak\.tooling\
 ├── android-sdk\
 ├── android-user-home\
 ├── gradle-user-home\
+├── gradle-project-cache\Daily-Speak\
+├── kotlin-project-cache\Daily-Speak\
 └── jdk-24\
 ```
 
@@ -74,18 +77,11 @@ API Key 有两种来源：
 
 ## 构建与测试
 
-在 PowerShell 中执行：
+推荐使用仓库内的脚本，由脚本自动把 JDK、Android SDK 和 Gradle 缓存指向仓库外父目录：
 
 ```powershell
-Remove-Item Env:ANDROID_PREFS_ROOT -ErrorAction SilentlyContinue
-$env:JAVA_HOME = 'D:\github\The-HAN\Daily-speak\.tooling\jdk-24'
-$env:ANDROID_HOME = 'D:\github\The-HAN\Daily-speak\.tooling\android-sdk'
-$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
-$env:ANDROID_USER_HOME = 'D:\github\The-HAN\Daily-speak\.tooling\android-user-home'
-$env:GRADLE_USER_HOME = 'D:\github\The-HAN\Daily-speak\.tooling\gradle-user-home'
-
 Set-Location 'D:\github\The-HAN\Daily-speak\Daily-Speak'
-.\gradlew.bat :app:assembleDebug :app:testDebugUnitTest --no-daemon
+.\scripts\build.ps1
 ```
 
 Debug APK 位于：
@@ -94,7 +90,7 @@ Debug APK 位于：
 app\build\outputs\apk\debug\app-debug.apk
 ```
 
-如果 Gradle 显示 `C:\.android` 不可写，清理当前终端的 `ANDROID_PREFS_ROOT` 后重新执行即可；这不是应用编译错误。
+脚本会主动清理 `ANDROID_PREFS_ROOT`，避免它与 `ANDROID_USER_HOME` 冲突；构建时即使出现 `C:\.android` 指标文件警告，也不影响 APK 产物。
 
 ## 真机运行
 
