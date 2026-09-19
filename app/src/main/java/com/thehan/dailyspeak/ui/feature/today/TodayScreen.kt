@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +52,8 @@ fun TodayScreen(
     onPlayQuestion: () -> Unit,
     onRetryAnalysis: () -> Unit,
     onGenerateWithDeepSeek: () -> Unit,
+    ttsMessage: String? = null,
+    onDismissTtsMessage: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val todayLabel = remember {
@@ -84,12 +87,14 @@ fun TodayScreen(
                 isGeneratingQuestions = uiState.isGeneratingQuestions,
                 generationMessage = uiState.generationMessage,
                 generationError = uiState.generationError,
+                ttsMessage = ttsMessage,
                 recorder = uiState.recorder,
                 onNextQuestion = onNextQuestion,
                 onRecordClick = onRecordClick,
                 onPlayQuestion = onPlayQuestion,
                 onRetryAnalysis = onRetryAnalysis,
                 onGenerateWithDeepSeek = onGenerateWithDeepSeek,
+                onDismissTtsMessage = onDismissTtsMessage,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -107,12 +112,14 @@ private fun PracticeContent(
     isGeneratingQuestions: Boolean,
     generationMessage: String?,
     generationError: String?,
+    ttsMessage: String?,
     recorder: RecorderUiState,
     onNextQuestion: () -> Unit,
     onRecordClick: () -> Unit,
     onPlayQuestion: () -> Unit,
     onRetryAnalysis: () -> Unit,
     onGenerateWithDeepSeek: () -> Unit,
+    onDismissTtsMessage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var hintVisible by rememberSaveable(question.id) { mutableStateOf(false) }
@@ -137,6 +144,13 @@ private fun PracticeContent(
             onPlayQuestion = onPlayQuestion,
             onToggleHint = { hintVisible = !hintVisible },
         )
+        if (ttsMessage != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            TtsNoticeCard(
+                message = ttsMessage,
+                onDismiss = onDismissTtsMessage,
+            )
+        }
         Spacer(modifier = Modifier.height(28.dp))
         RecordAction(
             recorder = recorder,
@@ -151,6 +165,34 @@ private fun PracticeContent(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("下一题")
+            }
+        }
+    }
+}
+
+@Composable
+private fun TtsNoticeCard(
+    message: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = message,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(onClick = onDismiss) {
+                Text("知道了")
             }
         }
     }

@@ -24,7 +24,7 @@ Core: Audio / Speech / TTS / DI
 ## 3. 当前实现
 
 - `QuestionRepository`：`OfflineFirstQuestionRepository` 首次启动写入原创本地题库，之后按日期、难度和话题稳定选题。
-- `SettingsRepository`：`DataStoreSettingsRepository` 持久化每日题量、难度、口音、话题、提醒开关、提醒时间和 API Key 覆盖值。
+- `SettingsRepository`：`DataStoreSettingsRepository` 持久化每日题量、难度、口音、话题、提醒开关、提醒时间、API Key 覆盖值、语音识别服务选择和背景配置。
 - `AttemptRepository`：`RoomAttemptRepository` 保存录音记录和转写。
 - `FeedbackRepository`：`RoomFeedbackRepository` 保存并读取反馈。
 - `FavoriteRepository`：`RoomFavoriteRepository` 管理题目收藏。
@@ -33,6 +33,8 @@ Core: Audio / Speech / TTS / DI
 - `SpeechRecognizerService`：`SystemSpeechRecognizerService` 提供 Android 13+ 文件来源适配器，失败时抛出可恢复错误。
 - `PronunciationEvaluator`：`DefaultPronunciationEvaluator` 使用识别置信度和 PCM 音频特征做粗略评分。
 - `TtsService`：`AndroidTtsService` 按美音或英音朗读问题/参考回答。
+- `SpeechRecognizerCatalog`：通过 `PackageManager` 查询已安装的 `RecognitionService`，并检测设备端识别能力。
+- `AppBackground`：渲染低饱和渐变预设或本地 `content://` 背景图片，并用 scrim 保证文字可读性。
 - `DailyReminderScheduler`：使用系统 `AlarmManager` 调度每日本地通知，`ReminderBootstrapper` 在启动、更新或开机后从 DataStore 恢复调度；Android 13+ 仅在用户授予通知权限后开启提醒。
 - `DeepSeekService`：`DeepSeekServiceImpl` 封装动态出题、翻译、参考回答、答案评价和改善建议请求；今日页和反馈页仅在用户明确确认后按需调用，失败时保留本地数据。
 - Hilt 模块：`DatabaseModule`、`RepositoryModule`、`SettingsModule`、`AudioModule`、`SpeechModule`、`NetworkModule`。
@@ -110,7 +112,8 @@ Android `SpeechRecognizer` 的基础公开 API 不提供所有设备都可用的
 
 - Android 13+ 使用 `RecognizerIntent.EXTRA_AUDIO_SOURCE`。
 - Android 11 及以下明确返回不支持。
-- 设备没有识别服务时返回明确错误。
+- 支持系统默认、Android 12+ 设备端识别，以及用户明确选择的已安装识别服务。
+- 设备没有识别服务或所选服务不可用时返回明确错误。
 - 识别失败不会生成假 transcript。
 
 可选替代方案：
@@ -146,4 +149,23 @@ flowchart LR
     BR --> RB[ReminderBootstrapper]
     DS --> RB
     RB --> RS
+```
+
+## 9. 朗读与背景配置
+
+```mermaid
+flowchart LR
+    UI[今日/反馈页播放按钮] --> VM[ViewModel]
+    VM --> TTS[AndroidTtsService]
+    TTS --> ATTR[USAGE_MEDIA / CONTENT_TYPE_SPEECH]
+    ATTR --> SPEAK[系统 TextToSpeech]
+    TTS --> STATE[TtsPlaybackState]
+    STATE --> UI
+
+    PROFILE[我的页背景设置] --> SETTINGS[SettingsRepository]
+    SETTINGS --> DS[(DataStore)]
+    PROFILE --> PICKER[OpenDocument]
+    PICKER --> URI[持久化 content:// URI]
+    URI --> DS
+    DS --> UI
 ```

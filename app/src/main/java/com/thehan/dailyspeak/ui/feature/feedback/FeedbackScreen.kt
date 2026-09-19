@@ -34,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -64,6 +65,8 @@ fun FeedbackScreen(
     onPlayReferenceAnswer: (String) -> Unit,
     onGenerateAiFeedback: () -> Unit,
     onRetryLoad: () -> Unit,
+    ttsMessage: String? = null,
+    onDismissTtsMessage: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -80,6 +83,14 @@ fun FeedbackScreen(
             onToggleFavorite = onToggleFavorite,
         )
         Spacer(modifier = Modifier.height(16.dp))
+
+        if (ttsMessage != null) {
+            TtsNoticeCard(
+                message = ttsMessage,
+                onDismiss = onDismissTtsMessage,
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+        }
 
         when {
             uiState.isLoading -> FeedbackLoading()
@@ -117,6 +128,34 @@ fun FeedbackScreen(
             onNextQuestion = onNextQuestion,
         )
         Spacer(modifier = Modifier.height(36.dp))
+    }
+}
+
+@Composable
+private fun TtsNoticeCard(
+    message: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = message,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(onClick = onDismiss) {
+                Text("知道了")
+            }
+        }
     }
 }
 

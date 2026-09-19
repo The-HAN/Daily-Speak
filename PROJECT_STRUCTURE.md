@@ -51,7 +51,7 @@ Daily-Speak/
 ├── scripts/
 │   └── build.ps1                              # 使用仓库外工具链构建与测试
 ├── dist/
-│   └── Daily-Speak-v0.1.0.apk                 # 已签名的本机发布产物，Git 忽略
+│   └── Daily-Speak-v0.2.0.apk                 # 已签名的本机发布产物，Git 忽略
 ├── build.gradle.kts
 ├── settings.gradle.kts
 ├── local.properties.example
@@ -60,6 +60,7 @@ Daily-Speak/
 ├── PROJECT_STRUCTURE.md
 ├── TASKS.md
 ├── RELEASE_NOTES_v0.1.0.md
+├── RELEASE_NOTES_v0.2.0.md
 └── README.md
 ```
 

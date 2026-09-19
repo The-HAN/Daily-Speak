@@ -13,6 +13,7 @@ import com.thehan.dailyspeak.domain.repository.FeedbackRepository
 import com.thehan.dailyspeak.domain.repository.QuestionRepository
 import com.thehan.dailyspeak.domain.repository.SettingsRepository
 import com.thehan.dailyspeak.domain.service.DeepSeekService
+import com.thehan.dailyspeak.domain.service.TtsPlaybackState
 import com.thehan.dailyspeak.domain.service.TtsService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -34,6 +35,7 @@ data class FeedbackUiState(
     val isGeneratingAiFeedback: Boolean = false,
     val aiFeedbackMessage: String? = null,
     val aiFeedbackError: String? = null,
+    val ttsMessage: String? = null,
     val errorMessage: String? = null,
 )
 
@@ -63,6 +65,13 @@ class FeedbackViewModel @Inject constructor(
                         accent = settings.accent,
                         ttsEnabled = settings.ttsEnabled,
                     )
+                }
+            }
+        }
+        viewModelScope.launch {
+            ttsService.playbackState.collect { playbackState ->
+                if (playbackState is TtsPlaybackState.Error) {
+                    _uiState.update { it.copy(ttsMessage = playbackState.message) }
                 }
             }
         }
@@ -136,8 +145,19 @@ class FeedbackViewModel @Inject constructor(
 
     fun playReferenceAnswer(text: String) {
         val state = _uiState.value
-        if (!state.ttsEnabled || text.isBlank()) return
+        if (!state.ttsEnabled) {
+            _uiState.update {
+                it.copy(ttsMessage = "朗读已关闭，请到“我的 → 提醒与朗读”开启。")
+            }
+            return
+        }
+        if (text.isBlank()) return
+        _uiState.update { it.copy(ttsMessage = null) }
         ttsService.speak(text, state.accent)
+    }
+
+    fun consumeTtsMessage() {
+        _uiState.update { it.copy(ttsMessage = null) }
     }
 
     /**

@@ -18,6 +18,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -32,8 +33,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.thehan.dailyspeak.domain.model.AccentPreference
+import com.thehan.dailyspeak.domain.model.BackgroundPreset
 import com.thehan.dailyspeak.domain.model.PracticeLevel
 import com.thehan.dailyspeak.domain.model.PracticeTopics
+import com.thehan.dailyspeak.domain.model.SpeechRecognizerMode
 import com.thehan.dailyspeak.domain.model.UserSettings
 import kotlin.math.roundToInt
 
@@ -49,6 +52,11 @@ fun ProfileScreen(
     onReminderTimeChange: (String) -> Unit,
     onSaveApiKey: (String) -> Unit,
     onTtsEnabledChange: (Boolean) -> Unit,
+    onSpeechRecognizerModeChange: (SpeechRecognizerMode) -> Unit,
+    onSpeechRecognizerServiceChange: (String) -> Unit,
+    onBackgroundPresetChange: (BackgroundPreset) -> Unit,
+    onPickBackgroundImage: () -> Unit,
+    onClearBackgroundImage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val settings = uiState.settings
@@ -144,6 +152,134 @@ fun ProfileScreen(
                     selected = settings.accent == AccentPreference.BRITISH,
                     onClick = { onAccentChange(AccentPreference.BRITISH) },
                     modifier = Modifier.weight(1f),
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        SettingsCard(title = "界面与背景") {
+            Text(
+                text = "选择低饱和预设，或用本地图片替换应用背景。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            BackgroundPreset.entries.chunked(3).forEach { presets ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    presets.forEach { preset ->
+                        LevelChip(
+                            label = preset.displayName(),
+                            selected = settings.backgroundImageUri.isBlank() &&
+                                settings.backgroundPreset == preset,
+                            onClick = { onBackgroundPresetChange(preset) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    repeat(3 - presets.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedButton(
+                    onClick = onPickBackgroundImage,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("选择图片")
+                }
+                OutlinedButton(
+                    onClick = onClearBackgroundImage,
+                    enabled = settings.backgroundImageUri.isNotBlank(),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("移除图片")
+                }
+            }
+            Text(
+                text = if (settings.backgroundImageUri.isBlank()) {
+                    "当前使用预设背景；图片不会上传。"
+                } else {
+                    "已启用自定义背景；图片仅由本机读取，不会上传。"
+                },
+                modifier = Modifier.padding(top = 8.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        SettingsCard(title = "语音识别服务") {
+            Text(
+                text = "选择用于把录音转成文字的系统服务。若某种服务不支持已有录音文件，请切换其他服务后重试。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                LevelChip(
+                    label = "系统默认",
+                    selected = settings.speechRecognizerMode == SpeechRecognizerMode.SYSTEM_DEFAULT,
+                    onClick = { onSpeechRecognizerModeChange(SpeechRecognizerMode.SYSTEM_DEFAULT) },
+                    modifier = Modifier.weight(1f),
+                )
+                LevelChip(
+                    label = "设备端",
+                    selected = settings.speechRecognizerMode == SpeechRecognizerMode.ON_DEVICE,
+                    onClick = { onSpeechRecognizerModeChange(SpeechRecognizerMode.ON_DEVICE) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Text(
+                text = if (uiState.isOnDeviceRecognitionAvailable) {
+                    "设备端识别可用；Android 12 及以上才支持。"
+                } else {
+                    "设备端识别不可用或系统版本低于 Android 12。"
+                },
+                modifier = Modifier.padding(top = 6.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (uiState.speechRecognizerServices.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    text = "已安装服务（${uiState.speechRecognizerServices.size}）",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                uiState.speechRecognizerServices.forEach { service ->
+                    FilterChip(
+                        selected = settings.speechRecognizerMode == SpeechRecognizerMode.SELECTED_SERVICE &&
+                            settings.speechRecognizerComponent == service.componentName,
+                        onClick = { onSpeechRecognizerServiceChange(service.componentName) },
+                        label = {
+                            Column {
+                                Text(service.label)
+                                Text(
+                                    text = service.packageName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+            } else {
+                Spacer(modifier = Modifier.height(14.dp))
+                Text(
+                    text = "未检测到已安装的语音识别服务，请安装并启用 Google 语音服务或厂商语音服务。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
                 )
             }
         }
@@ -318,4 +454,12 @@ private fun LevelChip(
         label = { Text(label) },
         modifier = modifier,
     )
+}
+
+private fun BackgroundPreset.displayName(): String = when (this) {
+    BackgroundPreset.DEFAULT -> "默认"
+    BackgroundPreset.MIST -> "雾白"
+    BackgroundPreset.MINT -> "薄荷"
+    BackgroundPreset.PEACH -> "暖杏"
+    BackgroundPreset.SKY -> "天空"
 }

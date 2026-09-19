@@ -68,6 +68,8 @@ fun TodayRoute(
         onPlayQuestion = viewModel::playCurrentQuestion,
         onRetryAnalysis = viewModel::retryAnalysis,
         onGenerateWithDeepSeek = { showDeepSeekConsent = true },
+        ttsMessage = uiState.ttsMessage,
+        onDismissTtsMessage = viewModel::consumeTtsMessage,
         modifier = modifier,
     )
 

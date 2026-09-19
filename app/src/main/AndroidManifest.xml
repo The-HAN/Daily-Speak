@@ -10,6 +10,15 @@
         android:name="android.hardware.microphone"
         android:required="false" />
 
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".DailySpeakApplication"
         android:allowBackup="false"

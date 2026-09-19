@@ -1,16 +1,22 @@
 package com.thehan.dailyspeak.core.speech
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelFileDescriptor
+import android.speech.RecognitionService
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import androidx.annotation.RequiresApi
+import com.thehan.dailyspeak.domain.model.AccentPreference
+import com.thehan.dailyspeak.domain.model.SpeechRecognizerMode
+import com.thehan.dailyspeak.domain.repository.SettingsRepository
 import com.thehan.dailyspeak.domain.service.SpeechRecognitionResult
 import com.thehan.dailyspeak.domain.service.SpeechRecognizerService
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -21,6 +27,7 @@ import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
@@ -35,6 +42,7 @@ import kotlinx.coroutines.withContext
 class SystemSpeechRecognizerService @Inject constructor(
     @ApplicationContext private val context: Context,
     private val pcmAudioDecoder: PcmAudioDecoder,
+    private val settingsRepository: SettingsRepository,
 ) : SpeechRecognizerService {
     override suspend fun recognize(audioFile: File): String =
         recognizeDetailed(audioFile).transcript
@@ -43,14 +51,26 @@ class SystemSpeechRecognizerService @Inject constructor(
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             throw UnsupportedOperationException("系统文件转写需要 Android 13 或更高版本。")
         }
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            throw IllegalStateException("设备未安装可用的系统语音识别服务。")
+
+        val settings = settingsRepository.settings.first()
+        requireRecognitionAvailable(
+            mode = settings.speechRecognizerMode,
+            selectedComponent = settings.speechRecognizerComponent,
+        )
+        val locale = when (settings.accent) {
+            AccentPreference.AMERICAN -> Locale.US
+            AccentPreference.BRITISH -> Locale.UK
         }
 
         val decoded = pcmAudioDecoder.decode(audioFile)
         return try {
             withContext(Dispatchers.Main.immediate) {
-                recognizePcm(decoded)
+                recognizePcm(
+                    decoded = decoded,
+                    mode = settings.speechRecognizerMode,
+                    selectedComponent = settings.speechRecognizerComponent,
+                    locale = locale,
+                )
             }
         } catch (error: Throwable) {
             throw IllegalStateException(
@@ -63,9 +83,14 @@ class SystemSpeechRecognizerService @Inject constructor(
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    private suspend fun recognizePcm(decoded: DecodedPcmAudio): SpeechRecognitionResult =
+    private suspend fun recognizePcm(
+        decoded: DecodedPcmAudio,
+        mode: SpeechRecognizerMode,
+        selectedComponent: String,
+        locale: Locale,
+    ): SpeechRecognitionResult =
         suspendCancellableCoroutine { continuation ->
-            val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
+            val recognizer = createRecognizer(mode, selectedComponent)
             val audioSource = ParcelFileDescriptor.open(
                 decoded.file,
                 ParcelFileDescriptor.MODE_READ_ONLY,
@@ -132,7 +157,7 @@ class SystemSpeechRecognizerService @Inject constructor(
                     RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                     RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
                 )
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.US.toLanguageTag())
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale.toLanguageTag())
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
                 putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, audioSource)
                 putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT, decoded.channelCount)
@@ -156,9 +181,84 @@ class SystemSpeechRecognizerService @Inject constructor(
             }
         }
 
+    private fun requireRecognitionAvailable(
+        mode: SpeechRecognizerMode,
+        selectedComponent: String,
+    ) {
+        when (mode) {
+            SpeechRecognizerMode.SYSTEM_DEFAULT -> {
+                if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+                    throw IllegalStateException(
+                        "设备未安装可用的系统语音识别服务，请在“我的 → 语音识别服务”中检查。",
+                    )
+                }
+            }
+
+            SpeechRecognizerMode.SELECTED_SERVICE -> {
+                val component = selectedComponent.toComponentName()
+                    ?: throw IllegalStateException(
+                        "还没有选择可用的语音识别服务，请先在“我的 → 语音识别服务”中设置。",
+                    )
+                val serviceIntent = Intent(RecognitionService.SERVICE_INTERFACE)
+                    .setComponent(component)
+                val resolved = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    context.packageManager.resolveService(
+                        serviceIntent,
+                        PackageManager.ResolveInfoFlags.of(0L),
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.packageManager.resolveService(serviceIntent, 0)
+                }
+                if (resolved == null) {
+                    throw IllegalStateException(
+                        "所选语音识别服务当前不可用，请重新选择“系统默认”或其他服务。",
+                    )
+                }
+            }
+
+            SpeechRecognizerMode.ON_DEVICE -> {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                    throw UnsupportedOperationException("设备端识别需要 Android 12 或更高版本。")
+                }
+                if (!SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
+                    throw IllegalStateException(
+                        "当前系统没有可用的设备端识别能力，请切换回系统默认识别。",
+                    )
+                }
+            }
+        }
+    }
+
+    private fun createRecognizer(
+        mode: SpeechRecognizerMode,
+        selectedComponent: String,
+    ): SpeechRecognizer = when (mode) {
+        SpeechRecognizerMode.SYSTEM_DEFAULT -> SpeechRecognizer.createSpeechRecognizer(context)
+        SpeechRecognizerMode.SELECTED_SERVICE -> {
+            val component = selectedComponent.toComponentName()
+                ?: throw IllegalStateException("所选语音识别服务信息无效。")
+            SpeechRecognizer.createSpeechRecognizer(context, component)
+        }
+
+        SpeechRecognizerMode.ON_DEVICE -> {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                throw UnsupportedOperationException("设备端识别需要 Android 12 或更高版本。")
+            }
+            createOnDeviceRecognizer()
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun createOnDeviceRecognizer(): SpeechRecognizer =
+        SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+
+    private fun String.toComponentName(): ComponentName? =
+        takeIf(String::isNotBlank)?.let(ComponentName::unflattenFromString)
+
     private fun errorMessage(errorCode: Int): String = when (errorCode) {
         SpeechRecognizer.ERROR_AUDIO -> "系统无法读取录音，请重试。"
-        SpeechRecognizer.ERROR_CLIENT -> "语音识别客户端出错。"
+        SpeechRecognizer.ERROR_CLIENT -> "语音识别客户端出错；所选服务可能不支持对已有录音文件转写，请切换其他识别服务后重试。"
         SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "缺少麦克风权限。"
         SpeechRecognizer.ERROR_NETWORK,
         SpeechRecognizer.ERROR_NETWORK_TIMEOUT,

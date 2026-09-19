@@ -32,6 +32,8 @@ fun FeedbackRoute(
         onPlayReferenceAnswer = viewModel::playReferenceAnswer,
         onGenerateAiFeedback = { showDeepSeekConsent = true },
         onRetryLoad = viewModel::load,
+        ttsMessage = uiState.ttsMessage,
+        onDismissTtsMessage = viewModel::consumeTtsMessage,
         modifier = modifier,
     )
 

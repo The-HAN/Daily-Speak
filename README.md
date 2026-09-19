@@ -14,6 +14,9 @@ Daily-Speak 是一个以“每日一问 + 录音回答 + 反馈复习”为核�
 - 默认 `PronunciationEvaluator` 使用识别置信度、音量、停顿、语速和动态范围做粗略评分。
 - 录音完成后保存 Attempt，生成本地基础反馈，并打开反馈页。
 - 反馈页支持折叠卡片、评分展示、参考回答 TTS、重录、下一题和收藏。
+- 问句与参考回答改用媒体音频通道朗读；初始化、语言包缺失和播放失败会显示可恢复提示。
+- “我的”页可选择系统默认、设备端或已安装的指定语音识别服务。
+- “我的”页提供低饱和预设背景，也可从系统文件选择器选择本地图片作为背景；图片不上传。
 - 今日页支持在用户确认后调用 DeepSeek 动态出题，并将结果缓存到 Room。
 - 反馈页支持在用户确认后发送转写文本和本地评分，生成 AI 改善建议；录音文件不会上传。
 - 复习页支持低分题、收藏题、历史记录以及日期、话题、难度筛选。
@@ -21,7 +24,7 @@ Daily-Speak 是一个以“每日一问 + 录音回答 + 反馈复习”为核�
 ## 尚未接入或仍需完善
 
 - DeepSeek 的动态出题和反馈建议已接入 UI 编排，但模型名、接口路径和请求格式仍需以官方文档和真实账号联调结果为准。
-- Android `SpeechRecognizer` 的音频文件来源能力依赖 Android 13+ 和设备上的识别服务，需要在红米 K60 真机验证。
+- Android `SpeechRecognizer` 的音频文件来源能力依赖 Android 13+ 和设备上的识别服务；可在“我的 → 语音识别服务”切换服务，但仍需在红米 K60 真机验证具体厂商实现。
 - 默认发音评分是粗略估算，不宣称为音素级评测；云端评测接口仍待实现。
 - 连续打卡计算、数据导出/清除尚未实现；每日提醒已接入，但仍需在红米 K60 上验证通知权限和系统省电策略。
 - API Key 当前使用 DataStore 保存本机覆盖值，正式发布前应迁移到 Android Keystore。
@@ -108,7 +111,7 @@ D:\github\The-HAN\Daily-speak\.tooling\daily-speak-release.properties
 属性名称为 `storeFile`、`storePassword`、`keyAlias` 和 `keyPassword`。密钥和凭据不进入 Git；如果本机没有该文件，`assembleRelease` 仍可构建未签名产物，但不能用于正常分发。首个版本的已签名 APK 位于：
 
 ```text
-dist\Daily-Speak-v0.1.0.apk
+dist\Daily-Speak-v0.2.0.apk
 ```
 
 ## 真机运行
@@ -124,7 +127,7 @@ dist\Daily-Speak-v0.1.0.apk
 
 ## 安装 Release APK
 
-1. 从 GitHub Release 下载 `Daily-Speak-v0.1.0.apk`，或使用仓库本地 `dist` 目录中的同一文件。
+1. 从 GitHub Release 下载 `Daily-Speak-v0.2.0.apk`，或使用仓库本地 `dist` 目录中的同一文件。
 2. 在手机上进入“设置 → 安全 → 安装未知应用”，允许当前浏览器或文件管理器安装。
 3. 点击 APK 并按系统提示安装。
 4. 首次录音授权麦克风；Android 13+ 开启提醒时授权通知。
@@ -158,6 +161,14 @@ interface PronunciationEvaluator {
 ## SpeechRecognizer 限制
 
 Android `SpeechRecognizer` 的基础公开 API 主要面向实时麦克风识别，不保证所有设备都能接受任意音频文件。当前实现使用 Android 13+ 的 `EXTRA_AUDIO_SOURCE` 契约，并要求设备安装可用的识别服务；如果平台或厂商实现拒绝该能力，会显示错误并保留 Attempt，用户可重试或后续替换为本地/云端识别适配器。
+
+“我的 → 语音识别服务”提供三种选择：
+
+1. 系统默认：使用设备当前的默认 `RecognitionService`。
+2. 设备端识别：Android 12+ 支持时使用系统设备端模型，不依赖网络。
+3. 指定服务：列出已安装且声明 `android.speech.RecognitionService` 的服务，可选择 Google、厂商或其他兼容实现。
+
+系统权限或厂商服务仍可能拒绝已有录音文件；切换服务后可回到今日页使用“重试转写与评分”。
 
 不要在该接口中返回伪造转写。要支持旧设备，优先改造为“录音与实时识别同一会话”或接入真正的文件识别服务。
 

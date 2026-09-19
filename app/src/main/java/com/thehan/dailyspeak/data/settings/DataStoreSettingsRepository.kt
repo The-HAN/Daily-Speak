@@ -9,7 +9,9 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.thehan.dailyspeak.domain.model.AccentPreference
+import com.thehan.dailyspeak.domain.model.BackgroundPreset
 import com.thehan.dailyspeak.domain.model.PracticeLevel
+import com.thehan.dailyspeak.domain.model.SpeechRecognizerMode
 import com.thehan.dailyspeak.domain.model.UserSettings
 import com.thehan.dailyspeak.domain.repository.SettingsRepository
 import java.io.IOException
@@ -47,6 +49,14 @@ class DataStoreSettingsRepository @Inject constructor(
                     ?: UserSettings.DEFAULT_REMINDER_TIME,
                 deepSeekApiKey = preferences[Keys.DEEPSEEK_API_KEY].orEmpty(),
                 ttsEnabled = preferences[Keys.TTS_ENABLED] ?: true,
+                speechRecognizerMode = preferences[Keys.SPEECH_RECOGNIZER_MODE]
+                    ?.let(::speechRecognizerModeOrNull)
+                    ?: SpeechRecognizerMode.SYSTEM_DEFAULT,
+                speechRecognizerComponent = preferences[Keys.SPEECH_RECOGNIZER_COMPONENT].orEmpty(),
+                backgroundPreset = preferences[Keys.BACKGROUND_PRESET]
+                    ?.let(::backgroundPresetOrNull)
+                    ?: BackgroundPreset.DEFAULT,
+                backgroundImageUri = preferences[Keys.BACKGROUND_IMAGE_URI].orEmpty(),
             )
         }
 
@@ -95,11 +105,47 @@ class DataStoreSettingsRepository @Inject constructor(
         dataStore.edit { it[Keys.TTS_ENABLED] = enabled }
     }
 
+    override suspend fun setSpeechRecognizerMode(mode: SpeechRecognizerMode) {
+        dataStore.edit { it[Keys.SPEECH_RECOGNIZER_MODE] = mode.name }
+    }
+
+    override suspend fun setSpeechRecognizerComponent(component: String) {
+        dataStore.edit { preferences ->
+            val normalized = component.trim()
+            if (normalized.isEmpty()) {
+                preferences.remove(Keys.SPEECH_RECOGNIZER_COMPONENT)
+            } else {
+                preferences[Keys.SPEECH_RECOGNIZER_COMPONENT] = normalized
+            }
+        }
+    }
+
+    override suspend fun setBackgroundPreset(preset: BackgroundPreset) {
+        dataStore.edit { it[Keys.BACKGROUND_PRESET] = preset.name }
+    }
+
+    override suspend fun setBackgroundImageUri(uri: String) {
+        dataStore.edit { preferences ->
+            val normalized = uri.trim()
+            if (normalized.isEmpty()) {
+                preferences.remove(Keys.BACKGROUND_IMAGE_URI)
+            } else {
+                preferences[Keys.BACKGROUND_IMAGE_URI] = normalized
+            }
+        }
+    }
+
     private fun practiceLevelOrNull(value: String): PracticeLevel? =
         PracticeLevel.entries.firstOrNull { it.name == value }
 
     private fun accentOrNull(value: String): AccentPreference? =
         AccentPreference.entries.firstOrNull { it.name == value }
+
+    private fun speechRecognizerModeOrNull(value: String): SpeechRecognizerMode? =
+        SpeechRecognizerMode.entries.firstOrNull { it.name == value }
+
+    private fun backgroundPresetOrNull(value: String): BackgroundPreset? =
+        BackgroundPreset.entries.firstOrNull { it.name == value }
 
     private object Keys {
         val DAILY_COUNT = intPreferencesKey("daily_count")
@@ -110,6 +156,10 @@ class DataStoreSettingsRepository @Inject constructor(
         val REMINDER_TIME = stringPreferencesKey("reminder_time")
         val DEEPSEEK_API_KEY = stringPreferencesKey("deepseek_api_key")
         val TTS_ENABLED = booleanPreferencesKey("tts_enabled")
+        val SPEECH_RECOGNIZER_MODE = stringPreferencesKey("speech_recognizer_mode")
+        val SPEECH_RECOGNIZER_COMPONENT = stringPreferencesKey("speech_recognizer_component")
+        val BACKGROUND_PRESET = stringPreferencesKey("background_preset")
+        val BACKGROUND_IMAGE_URI = stringPreferencesKey("background_image_uri")
     }
 
     private companion object {

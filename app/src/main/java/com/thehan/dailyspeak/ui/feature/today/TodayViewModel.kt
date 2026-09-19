@@ -18,6 +18,7 @@ import com.thehan.dailyspeak.domain.service.DeepSeekService
 import com.thehan.dailyspeak.domain.service.PronunciationEvaluator
 import com.thehan.dailyspeak.domain.service.SpeechRecognizerService
 import com.thehan.dailyspeak.domain.service.TranscriptAwarePronunciationEvaluator
+import com.thehan.dailyspeak.domain.service.TtsPlaybackState
 import com.thehan.dailyspeak.domain.service.TtsService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
@@ -54,6 +55,7 @@ data class TodayUiState(
     val errorMessage: String? = null,
     val generationMessage: String? = null,
     val generationError: String? = null,
+    val ttsMessage: String? = null,
     val recorder: RecorderUiState = RecorderUiState(),
 ) {
     val currentQuestion: Question?
@@ -97,6 +99,13 @@ class TodayViewModel @Inject constructor(
                     currentSettings = settings
                     loadQuestions(settings)
                 }
+        }
+        viewModelScope.launch {
+            ttsService.playbackState.collect { playbackState ->
+                if (playbackState is TtsPlaybackState.Error) {
+                    _uiState.update { it.copy(ttsMessage = playbackState.message) }
+                }
+            }
         }
     }
 
@@ -179,9 +188,19 @@ class TodayViewModel @Inject constructor(
     }
 
     fun playCurrentQuestion() {
-        if (!currentSettings.ttsEnabled) return
+        if (!currentSettings.ttsEnabled) {
+            _uiState.update {
+                it.copy(ttsMessage = "朗读已关闭，请到“我的 → 提醒与朗读”开启。")
+            }
+            return
+        }
         val question = _uiState.value.currentQuestion ?: return
+        _uiState.update { it.copy(ttsMessage = null) }
         ttsService.speak(question.englishQuestion, currentSettings.accent)
+    }
+
+    fun consumeTtsMessage() {
+        _uiState.update { it.copy(ttsMessage = null) }
     }
 
     fun consumeProcessedAttempt() {

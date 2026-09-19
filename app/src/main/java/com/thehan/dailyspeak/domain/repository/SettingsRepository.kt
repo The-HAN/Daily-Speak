@@ -1,7 +1,9 @@
 package com.thehan.dailyspeak.domain.repository
 
 import com.thehan.dailyspeak.domain.model.AccentPreference
+import com.thehan.dailyspeak.domain.model.BackgroundPreset
 import com.thehan.dailyspeak.domain.model.PracticeLevel
+import com.thehan.dailyspeak.domain.model.SpeechRecognizerMode
 import com.thehan.dailyspeak.domain.model.UserSettings
 import kotlinx.coroutines.flow.Flow
 
@@ -23,4 +25,12 @@ interface SettingsRepository {
     suspend fun setDeepSeekApiKey(apiKey: String)
 
     suspend fun setTtsEnabled(enabled: Boolean)
+
+    suspend fun setSpeechRecognizerMode(mode: SpeechRecognizerMode)
+
+    suspend fun setSpeechRecognizerComponent(component: String)
+
+    suspend fun setBackgroundPreset(preset: BackgroundPreset)
+
+    suspend fun setBackgroundImageUri(uri: String)
 }

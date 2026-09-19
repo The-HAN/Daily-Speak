@@ -3,8 +3,12 @@ package com.thehan.dailyspeak.ui.feature.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.thehan.dailyspeak.core.reminder.DailyReminderScheduler
+import com.thehan.dailyspeak.core.speech.SpeechRecognizerCatalog
+import com.thehan.dailyspeak.core.speech.SpeechRecognizerServiceInfo
 import com.thehan.dailyspeak.domain.model.AccentPreference
+import com.thehan.dailyspeak.domain.model.BackgroundPreset
 import com.thehan.dailyspeak.domain.model.PracticeLevel
+import com.thehan.dailyspeak.domain.model.SpeechRecognizerMode
 import com.thehan.dailyspeak.domain.model.UserSettings
 import com.thehan.dailyspeak.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,17 +17,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class ProfileUiState(
     val isLoading: Boolean = true,
     val settings: UserSettings = UserSettings(),
+    val speechRecognizerServices: List<SpeechRecognizerServiceInfo> = emptyList(),
+    val isOnDeviceRecognitionAvailable: Boolean = false,
 )
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val reminderScheduler: DailyReminderScheduler,
+    private val speechRecognizerCatalog: SpeechRecognizerCatalog,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
@@ -37,6 +46,17 @@ class ProfileViewModel @Inject constructor(
                         settings = settings,
                     )
                 }
+            }
+        }
+        viewModelScope.launch {
+            val snapshot = withContext(Dispatchers.IO) {
+                speechRecognizerCatalog.snapshot()
+            }
+            _uiState.update {
+                it.copy(
+                    speechRecognizerServices = snapshot.services,
+                    isOnDeviceRecognitionAvailable = snapshot.isOnDeviceRecognitionAvailable,
+                )
             }
         }
     }
@@ -86,5 +106,31 @@ class ProfileViewModel @Inject constructor(
 
     fun setTtsEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setTtsEnabled(enabled) }
+    }
+
+    fun setSpeechRecognizerMode(mode: SpeechRecognizerMode) {
+        viewModelScope.launch { settingsRepository.setSpeechRecognizerMode(mode) }
+    }
+
+    fun selectSpeechRecognizerService(component: String) {
+        viewModelScope.launch {
+            settingsRepository.setSpeechRecognizerComponent(component)
+            settingsRepository.setSpeechRecognizerMode(SpeechRecognizerMode.SELECTED_SERVICE)
+        }
+    }
+
+    fun setBackgroundPreset(preset: BackgroundPreset) {
+        viewModelScope.launch {
+            settingsRepository.setBackgroundPreset(preset)
+            settingsRepository.setBackgroundImageUri("")
+        }
+    }
+
+    fun setBackgroundImageUri(uri: String) {
+        viewModelScope.launch { settingsRepository.setBackgroundImageUri(uri) }
+    }
+
+    fun clearBackgroundImage() {
+        viewModelScope.launch { settingsRepository.setBackgroundImageUri("") }
     }
 }

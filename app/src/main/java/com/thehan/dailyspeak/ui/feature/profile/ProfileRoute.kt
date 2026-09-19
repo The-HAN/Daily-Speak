@@ -1,6 +1,7 @@
 package com.thehan.dailyspeak.ui.feature.profile
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.widget.Toast
@@ -23,6 +24,25 @@ fun ProfileRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val backgroundImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }.onFailure {
+                Toast.makeText(
+                    context,
+                    "图片已选择，但系统未授予长期访问权限，重启应用后可能需要重新选择。",
+                    Toast.LENGTH_LONG,
+                ).show()
+            }
+            viewModel.setBackgroundImageUri(uri.toString())
+        }
+    }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -59,6 +79,11 @@ fun ProfileRoute(
         onReminderTimeChange = viewModel::setReminderTime,
         onSaveApiKey = viewModel::saveDeepSeekApiKey,
         onTtsEnabledChange = viewModel::setTtsEnabled,
+        onSpeechRecognizerModeChange = viewModel::setSpeechRecognizerMode,
+        onSpeechRecognizerServiceChange = viewModel::selectSpeechRecognizerService,
+        onBackgroundPresetChange = viewModel::setBackgroundPreset,
+        onPickBackgroundImage = { backgroundImageLauncher.launch(arrayOf("image/*")) },
+        onClearBackgroundImage = viewModel::clearBackgroundImage,
         modifier = modifier,
     )
 }

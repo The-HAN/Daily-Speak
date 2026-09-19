@@ -9,6 +9,10 @@ data class UserSettings(
     val reminderTime: String = DEFAULT_REMINDER_TIME,
     val deepSeekApiKey: String = "",
     val ttsEnabled: Boolean = true,
+    val speechRecognizerMode: SpeechRecognizerMode = SpeechRecognizerMode.SYSTEM_DEFAULT,
+    val speechRecognizerComponent: String = "",
+    val backgroundPreset: BackgroundPreset = BackgroundPreset.DEFAULT,
+    val backgroundImageUri: String = "",
 ) {
     companion object {
         const val DEFAULT_DAILY_COUNT = 5
