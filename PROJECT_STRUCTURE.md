@@ -13,6 +13,7 @@ Daily-Speak/
 │       │   │   ├── core/
 │       │   │   │   ├── audio/                # AudioRecorder 与 MediaRecorder 实现
 │       │   │   │   ├── di/                   # Hilt 模块
+│       │   │   │   ├── reminder/             # AlarmManager 每日提醒与开机恢复
 │       │   │   │   ├── speech/               # 系统识别、PCM 解码、粗发音评分
 │       │   │   │   └── tts/                  # Android TextToSpeech 实现
 │       │   │   ├── data/
@@ -85,7 +86,7 @@ MVP 使用单 Android 模块，但包结构保持分层；后续需要时可拆�
 | ViewModel | 页面状态、录音和分析编排 | `TodayViewModel`, `FeedbackViewModel`, `ReviewViewModel` |
 | Domain | 纯 Kotlin 模型、Repository 和 Service 契约 | `Question`, `Attempt`, `Feedback`, `DeepSeekService` |
 | Data | Room、DataStore、Retrofit、Repository 实现 | `DailySpeakDatabase`, `OfflineFirstQuestionRepository`, `DeepSeekServiceImpl` |
-| Core | 音频、语音识别、发音评分、TTS、Hilt | `MediaRecorderAudioRecorder`, `SystemSpeechRecognizerService`, `DefaultPronunciationEvaluator` |
+| Core | 音频、语音识别、发音评分、TTS、提醒、Hilt | `MediaRecorderAudioRecorder`, `SystemSpeechRecognizerService`, `DefaultPronunciationEvaluator`, `DailyReminderScheduler` |
 
 ## 3. 当前本地练习数据流
 

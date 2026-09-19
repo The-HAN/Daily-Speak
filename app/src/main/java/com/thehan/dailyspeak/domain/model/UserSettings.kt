@@ -5,6 +5,7 @@ data class UserSettings(
     val level: PracticeLevel = PracticeLevel.MIXED,
     val accent: AccentPreference = AccentPreference.AMERICAN,
     val topics: Set<String> = emptySet(),
+    val reminderEnabled: Boolean = false,
     val reminderTime: String = DEFAULT_REMINDER_TIME,
     val deepSeekApiKey: String = "",
     val ttsEnabled: Boolean = true,

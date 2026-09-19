@@ -24,7 +24,7 @@ Core: Audio / Speech / TTS / DI
 ## 3. 当前实现
 
 - `QuestionRepository`：`OfflineFirstQuestionRepository` 首次启动写入原创本地题库，之后按日期、难度和话题稳定选题。
-- `SettingsRepository`：`DataStoreSettingsRepository` 持久化每日题量、难度、口音、话题、提醒时间和 API Key 覆盖值。
+- `SettingsRepository`：`DataStoreSettingsRepository` 持久化每日题量、难度、口音、话题、提醒开关、提醒时间和 API Key 覆盖值。
 - `AttemptRepository`：`RoomAttemptRepository` 保存录音记录和转写。
 - `FeedbackRepository`：`RoomFeedbackRepository` 保存并读取反馈。
 - `FavoriteRepository`：`RoomFavoriteRepository` 管理题目收藏。
@@ -33,6 +33,7 @@ Core: Audio / Speech / TTS / DI
 - `SpeechRecognizerService`：`SystemSpeechRecognizerService` 提供 Android 12+ 文件来源适配器，失败时抛出可恢复错误。
 - `PronunciationEvaluator`：`DefaultPronunciationEvaluator` 使用识别置信度和 PCM 音频特征做粗略评分。
 - `TtsService`：`AndroidTtsService` 按美音或英音朗读问题/参考回答。
+- `DailyReminderScheduler`：使用系统 `AlarmManager` 调度每日本地通知，`ReminderBootstrapper` 在启动、更新或开机后从 DataStore 恢复调度；Android 13+ 仅在用户授予通知权限后开启提醒。
 - `DeepSeekService`：`DeepSeekServiceImpl` 封装动态出题、翻译、参考回答、答案评价和改善建议请求；今日页和反馈页仅在用户明确确认后按需调用，失败时保留本地数据。
 - Hilt 模块：`DatabaseModule`、`RepositoryModule`、`SettingsModule`、`AudioModule`、`SpeechModule`、`NetworkModule`。
 - 数据库当前使用 `fallbackToDestructiveMigration(dropAllTables = true)`；schema 已导出，正式发布前必须补 Migration。
@@ -127,3 +128,22 @@ Android `SpeechRecognizer` 的基础公开 API 不提供所有设备都可用的
 - 正式版应将 API Key 迁移到 Android Keystore 加密存储。
 - 网络题库只保存授权内容或必要的摘要/链接，不保存侵权完整内容。
 - 构建产物、本地 SDK、Gradle 缓存和 `local.properties` 不提交到 Git。
+
+## 8. 每日提醒数据流
+
+```mermaid
+flowchart LR
+    UI[我的页提醒开关] --> Permission{Android 13+ 通知权限}
+    Permission -->|允许| VM[ProfileViewModel]
+    Permission -->|拒绝| OFF[保持关闭]
+    VM --> SR[SettingsRepository]
+    SR --> DS[(DataStore)]
+    VM --> RS[DailyReminderScheduler]
+    RS --> ALARM[AlarmManager]
+    ALARM --> RX[DailyReminderReceiver]
+    RX --> NOTIFY[本地通知]
+    BOOT[开机/应用更新] --> BR[ReminderBootReceiver]
+    BR --> RB[ReminderBootstrapper]
+    DS --> RB
+    RB --> RS
+```

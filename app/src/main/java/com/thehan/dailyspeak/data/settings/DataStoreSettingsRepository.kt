@@ -41,6 +41,7 @@ class DataStoreSettingsRepository @Inject constructor(
                     ?.let(::accentOrNull)
                     ?: AccentPreference.AMERICAN,
                 topics = preferences[Keys.TOPICS].orEmpty(),
+                reminderEnabled = preferences[Keys.REMINDER_ENABLED] ?: false,
                 reminderTime = preferences[Keys.REMINDER_TIME]
                     ?.takeIf(REMINDER_TIME_REGEX::matches)
                     ?: UserSettings.DEFAULT_REMINDER_TIME,
@@ -68,6 +69,10 @@ class DataStoreSettingsRepository @Inject constructor(
 
     override suspend fun setTopics(topics: Set<String>) {
         dataStore.edit { it[Keys.TOPICS] = topics }
+    }
+
+    override suspend fun setReminderEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.REMINDER_ENABLED] = enabled }
     }
 
     override suspend fun setReminderTime(time: String) {
@@ -101,6 +106,7 @@ class DataStoreSettingsRepository @Inject constructor(
         val LEVEL = stringPreferencesKey("practice_level")
         val ACCENT = stringPreferencesKey("accent")
         val TOPICS = stringSetPreferencesKey("topics")
+        val REMINDER_ENABLED = booleanPreferencesKey("reminder_enabled")
         val REMINDER_TIME = stringPreferencesKey("reminder_time")
         val DEEPSEEK_API_KEY = stringPreferencesKey("deepseek_api_key")
         val TTS_ENABLED = booleanPreferencesKey("tts_enabled")

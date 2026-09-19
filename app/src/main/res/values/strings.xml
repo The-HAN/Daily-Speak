@@ -23,4 +23,10 @@
 
     <string name="profile_placeholder_title">设置将在后续步骤接入</string>
     <string name="profile_placeholder_body">每日题量、难度、口音、话题和 DeepSeek API Key 将在这里配置。</string>
+
+    <string name="reminder_channel_name">每日练习提醒</string>
+    <string name="reminder_channel_description">在设定时间提醒你完成 DailySpeak 口语练习</string>
+    <string name="reminder_notification_title">今天练口语了吗？</string>
+    <string name="reminder_notification_body">打开 DailySpeak，完成今天的英语问答练习。</string>
+    <string name="reminder_permission_denied">未获得通知权限，每日提醒未启用。</string>
 </resources>

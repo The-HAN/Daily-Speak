@@ -2,6 +2,7 @@ package com.thehan.dailyspeak.ui.feature.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.thehan.dailyspeak.core.reminder.DailyReminderScheduler
 import com.thehan.dailyspeak.domain.model.AccentPreference
 import com.thehan.dailyspeak.domain.model.PracticeLevel
 import com.thehan.dailyspeak.domain.model.UserSettings
@@ -22,6 +23,7 @@ data class ProfileUiState(
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
+    private val reminderScheduler: DailyReminderScheduler,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
@@ -58,8 +60,24 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setTopics(updatedTopics) }
     }
 
+    fun setReminderEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setReminderEnabled(enabled)
+            if (enabled) {
+                reminderScheduler.schedule(_uiState.value.settings.reminderTime)
+            } else {
+                reminderScheduler.cancel()
+            }
+        }
+    }
+
     fun setReminderTime(time: String) {
-        viewModelScope.launch { settingsRepository.setReminderTime(time) }
+        viewModelScope.launch {
+            settingsRepository.setReminderTime(time)
+            if (_uiState.value.settings.reminderEnabled) {
+                reminderScheduler.schedule(time)
+            }
+        }
     }
 
     fun saveDeepSeekApiKey(apiKey: String) {

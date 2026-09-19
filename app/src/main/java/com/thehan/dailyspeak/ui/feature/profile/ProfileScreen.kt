@@ -45,6 +45,7 @@ fun ProfileScreen(
     onLevelChange: (PracticeLevel) -> Unit,
     onAccentChange: (AccentPreference) -> Unit,
     onTopicToggle: (String) -> Unit,
+    onReminderEnabledChange: (Boolean) -> Unit,
     onReminderTimeChange: (String) -> Unit,
     onSaveApiKey: (String) -> Unit,
     onTtsEnabledChange: (Boolean) -> Unit,
@@ -178,6 +179,29 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
         SettingsCard(title = "提醒与朗读") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("每日提醒", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = if (settings.reminderEnabled) {
+                            "已开启，每天 ${settings.reminderTime} 提醒"
+                        } else {
+                            "关闭"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = settings.reminderEnabled,
+                    onCheckedChange = onReminderEnabledChange,
+                )
+            }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
             var reminderDraft by rememberSaveable(settings.reminderTime) {
                 mutableStateOf(settings.reminderTime)
             }
@@ -189,7 +213,7 @@ fun ProfileScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text("每日提醒时间") },
-                supportingText = { Text("24 小时制，例如 20:30") },
+                supportingText = { Text("24 小时制，例如 20:30；修改后会自动重新调度。") },
                 singleLine = true,
             )
             HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))

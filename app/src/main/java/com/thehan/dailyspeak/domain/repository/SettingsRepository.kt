@@ -16,6 +16,8 @@ interface SettingsRepository {
 
     suspend fun setTopics(topics: Set<String>)
 
+    suspend fun setReminderEnabled(enabled: Boolean)
+
     suspend fun setReminderTime(time: String)
 
     suspend fun setDeepSeekApiKey(apiKey: String)
