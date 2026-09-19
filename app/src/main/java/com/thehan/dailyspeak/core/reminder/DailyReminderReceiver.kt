@@ -1,6 +1,7 @@
 package com.thehan.dailyspeak.core.reminder
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -46,7 +47,19 @@ class DailyReminderReceiver : BroadcastReceiver() {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .build()
 
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
+        postNotification(context, notification)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun postNotification(
+        context: Context,
+        notification: android.app.Notification,
+    ) {
+        try {
+            NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+            // Notification permission can be revoked between the check and notify call.
+        }
     }
 
     private fun canPostNotifications(context: Context): Boolean {

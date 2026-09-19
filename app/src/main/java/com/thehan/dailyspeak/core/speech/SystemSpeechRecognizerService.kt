@@ -25,7 +25,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
 /**
- * Android 12+ file-source adapter.
+ * Android 13+ file-source adapter.
  *
  * EXTRA_AUDIO_SOURCE is a platform contract, but individual recognizer
  * services may still reject it. This implementation reports that limitation
@@ -40,8 +40,8 @@ class SystemSpeechRecognizerService @Inject constructor(
         recognizeDetailed(audioFile).transcript
 
     override suspend fun recognizeDetailed(audioFile: File): SpeechRecognitionResult {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            throw UnsupportedOperationException("系统文件转写需要 Android 12 或更高版本。")
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            throw UnsupportedOperationException("系统文件转写需要 Android 13 或更高版本。")
         }
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
             throw IllegalStateException("设备未安装可用的系统语音识别服务。")
@@ -62,7 +62,7 @@ class SystemSpeechRecognizerService @Inject constructor(
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private suspend fun recognizePcm(decoded: DecodedPcmAudio): SpeechRecognitionResult =
         suspendCancellableCoroutine { continuation ->
             val recognizer = SpeechRecognizer.createSpeechRecognizer(context)

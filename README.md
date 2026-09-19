@@ -10,7 +10,7 @@ Daily-Speak 是一个以“每日一问 + 录音回答 + 反馈复习”为核�
 - 我的页持久化每日题量、难度、口音、话题、提醒时间、TTS 开关和 DeepSeek API Key 覆盖值。
 - 我的页可开启每日提醒；Android 13+ 会请求通知权限，使用系统 AlarmManager 在设定时间发送本地通知，重启后自动恢复调度。
 - 请求 `RECORD_AUDIO` 权限后使用 `MediaRecorder` 录音，并保存 `.m4a` 到应用私有目录。
-- Android 12+ 文件来源 `SpeechRecognizer` 适配器；识别失败会返回明确错误，不会伪造 transcript。
+- Android 13+ 文件来源 `SpeechRecognizer` 适配器；识别失败会返回明确错误，不会伪造 transcript。
 - 默认 `PronunciationEvaluator` 使用识别置信度、音量、停顿、语速和动态范围做粗略评分。
 - 录音完成后保存 Attempt，生成本地基础反馈，并打开反馈页。
 - 反馈页支持折叠卡片、评分展示、参考回答 TTS、重录、下一题和收藏。
@@ -21,7 +21,7 @@ Daily-Speak 是一个以“每日一问 + 录音回答 + 反馈复习”为核�
 ## 尚未接入或仍需完善
 
 - DeepSeek 的动态出题和反馈建议已接入 UI 编排，但模型名、接口路径和请求格式仍需以官方文档和真实账号联调结果为准。
-- Android `SpeechRecognizer` 的音频文件来源能力依赖 Android 12+ 和设备上的识别服务，需要在红米 K60 真机验证。
+- Android `SpeechRecognizer` 的音频文件来源能力依赖 Android 13+ 和设备上的识别服务，需要在红米 K60 真机验证。
 - 默认发音评分是粗略估算，不宣称为音素级评测；云端评测接口仍待实现。
 - 连续打卡计算、数据导出/清除尚未实现；每日提醒已接入，但仍需在红米 K60 上验证通知权限和系统省电策略。
 - API Key 当前使用 DataStore 保存本机覆盖值，正式发布前应迁移到 Android Keystore。
@@ -93,6 +93,24 @@ app\build\outputs\apk\debug\app-debug.apk
 
 脚本会主动清理 `ANDROID_PREFS_ROOT`，避免它与 `ANDROID_USER_HOME` 冲突；构建时即使出现 `C:\.android` 指标文件警告，也不影响 APK 产物。
 
+构建 Release APK：
+
+```powershell
+.\scripts\build.ps1 :app:assembleRelease
+```
+
+Release 签名配置默认从仓库外的以下文件读取：
+
+```text
+D:\github\The-HAN\Daily-speak\.tooling\daily-speak-release.properties
+```
+
+属性名称为 `storeFile`、`storePassword`、`keyAlias` 和 `keyPassword`。密钥和凭据不进入 Git；如果本机没有该文件，`assembleRelease` 仍可构建未签名产物，但不能用于正常分发。首个版本的已签名 APK 位于：
+
+```text
+dist\Daily-Speak-v0.1.0.apk
+```
+
 ## 真机运行
 
 1. Redmi K60 开启开发者选项和 USB 调试。
@@ -103,6 +121,14 @@ app\build\outputs\apk\debug\app-debug.apk
 6. 在“我的”页开启每日提醒；Android 13+ 允许通知权限，将提醒时间设置为数分钟后的未来时间，锁屏等待本地通知。
 7. 检查浅色、深色、字体放大和边到边布局是否无遮挡。
 8. 录音后查看是否进入反馈页，并确认"重录 / 下一题 / 收藏 / TTS"可用。
+
+## 安装 Release APK
+
+1. 从 GitHub Release 下载 `Daily-Speak-v0.1.0.apk`，或使用仓库本地 `dist` 目录中的同一文件。
+2. 在手机上进入“设置 → 安全 → 安装未知应用”，允许当前浏览器或文件管理器安装。
+3. 点击 APK 并按系统提示安装。
+4. 首次录音授权麦克风；Android 13+ 开启提醒时授权通知。
+5. 如果系统没有可用的语音识别服务，录音和本地评分仍可工作，文件转写会显示可恢复错误。
 
 ## 替换发音评测服务
 
@@ -131,7 +157,7 @@ interface PronunciationEvaluator {
 
 ## SpeechRecognizer 限制
 
-Android `SpeechRecognizer` 的基础公开 API 主要面向实时麦克风识别，不保证所有设备都能接受任意音频文件。当前实现使用 Android 12+ 的 `EXTRA_AUDIO_SOURCE` 契约，并要求设备安装可用的识别服务；如果平台或厂商实现拒绝该能力，会显示错误并保留 Attempt，用户可重试或后续替换为本地/云端识别适配器。
+Android `SpeechRecognizer` 的基础公开 API 主要面向实时麦克风识别，不保证所有设备都能接受任意音频文件。当前实现使用 Android 13+ 的 `EXTRA_AUDIO_SOURCE` 契约，并要求设备安装可用的识别服务；如果平台或厂商实现拒绝该能力，会显示错误并保留 Attempt，用户可重试或后续替换为本地/云端识别适配器。
 
 不要在该接口中返回伪造转写。要支持旧设备，优先改造为“录音与实时识别同一会话”或接入真正的文件识别服务。
 

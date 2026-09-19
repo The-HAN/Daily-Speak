@@ -50,6 +50,8 @@ Daily-Speak/
 │   └── wrapper/
 ├── scripts/
 │   └── build.ps1                              # 使用仓库外工具链构建与测试
+├── dist/
+│   └── Daily-Speak-v0.1.0.apk                 # 已签名的本机发布产物，Git 忽略
 ├── build.gradle.kts
 ├── settings.gradle.kts
 ├── local.properties.example
@@ -57,6 +59,7 @@ Daily-Speak/
 ├── ARCHITECTURE.md
 ├── PROJECT_STRUCTURE.md
 ├── TASKS.md
+├── RELEASE_NOTES_v0.1.0.md
 └── README.md
 ```
 
@@ -71,7 +74,9 @@ Daily-Speak/
 │   └── Daily-Speak/
 ├── kotlin-project-cache/
 │   └── Daily-Speak/
-└── jdk-24/
+├── jdk-24/
+├── daily-speak-release.jks                    # 不进入 Git
+└── daily-speak-release.properties             # 不进入 Git
 ```
 
 `local.properties` 只保留本机 SDK 路径和本地 DeepSeek 配置，并由 `.gitignore` 忽略。
@@ -162,4 +167,4 @@ interface TtsService {
 }
 ```
 
-`SpeechRecognizerService.recognize(audioFile)` 的 Android 系统实现受平台和设备服务限制；当前使用 Android 12+ 文件来源路径，失败时明确报错，不生成假数据。
+`SpeechRecognizerService.recognize(audioFile)` 的 Android 系统实现受平台和设备服务限制；当前使用 Android 13+ 文件来源路径，失败时明确报错，不生成假数据。

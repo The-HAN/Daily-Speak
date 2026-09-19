@@ -2,7 +2,7 @@
 # Never commit local.properties.
 
 # Android SDK location
-sdk.dir=D:/github/The-HAN/Daily-speak/.tooling/android-sdk
+sdk.dir=D\:/github/The-HAN/Daily-speak/.tooling/android-sdk
 
 # DeepSeek configuration
 DEEPSEEK_API_KEY=

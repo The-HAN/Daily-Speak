@@ -29,7 +29,7 @@
 ## 阶段 2：语音与反馈闭环
 
 - [x] `SpeechRecognizerService` 契约。
-- [x] Android 12+ `EXTRA_AUDIO_SOURCE` 文件转写适配器。
+- [x] Android 13+ `EXTRA_AUDIO_SOURCE` 文件转写适配器。
 - [x] 录音转写失败时的可恢复错误和重试入口。
 - [~] 红米 K60 真机验证系统识别服务和音频文件来源兼容性。
 - [x] `PronunciationEvaluator` 契约。
@@ -60,4 +60,5 @@
 - [ ] 后台任务、网络重试、超时和离线队列。
 - [ ] 隐私政策和第三方 SDK 合规清单。
 - [ ] 性能基线、崩溃监控和发布构建。
-- [ ] 应用图标、启动页、版本号和发布签名配置。
+- [x] 应用图标、启动页、版本号和 Release 签名配置。
+- [x] 构建并校验 v0.1.0 可安装 Release APK。

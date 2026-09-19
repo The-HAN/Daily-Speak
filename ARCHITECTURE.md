@@ -30,7 +30,7 @@ Core: Audio / Speech / TTS / DI
 - `FavoriteRepository`：`RoomFavoriteRepository` 管理题目收藏。
 - `ReviewRepository`：`RoomReviewRepository` 聚合每题最新 Attempt、Feedback 和收藏状态。
 - `AudioRecorder`：`MediaRecorderAudioRecorder` 录制 AAC `.m4a`。
-- `SpeechRecognizerService`：`SystemSpeechRecognizerService` 提供 Android 12+ 文件来源适配器，失败时抛出可恢复错误。
+- `SpeechRecognizerService`：`SystemSpeechRecognizerService` 提供 Android 13+ 文件来源适配器，失败时抛出可恢复错误。
 - `PronunciationEvaluator`：`DefaultPronunciationEvaluator` 使用识别置信度和 PCM 音频特征做粗略评分。
 - `TtsService`：`AndroidTtsService` 按美音或英音朗读问题/参考回答。
 - `DailyReminderScheduler`：使用系统 `AlarmManager` 调度每日本地通知，`ReminderBootstrapper` 在启动、更新或开机后从 DataStore 恢复调度；Android 13+ 仅在用户授予通知权限后开启提醒。
@@ -108,7 +108,7 @@ Today/Feedback UI 当前遵循以下顺序：
 
 Android `SpeechRecognizer` 的基础公开 API 不提供所有设备都可用的“直接输入任意音频文件”能力。当前实现：
 
-- Android 12+ 使用 `RecognizerIntent.EXTRA_AUDIO_SOURCE`。
+- Android 13+ 使用 `RecognizerIntent.EXTRA_AUDIO_SOURCE`。
 - Android 11 及以下明确返回不支持。
 - 设备没有识别服务时返回明确错误。
 - 识别失败不会生成假 transcript。

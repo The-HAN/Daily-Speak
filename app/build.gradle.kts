@@ -1,3 +1,4 @@
+import java.io.File
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -16,6 +17,35 @@ val localProperties = Properties().apply {
         localPropertiesFile.inputStream().use(::load)
     }
 }
+
+val releasePropertiesFile = localProperties
+    .getProperty("RELEASE_PROPERTIES_FILE")
+    ?.takeIf(String::isNotBlank)
+    ?.let(::File)
+    ?: rootProject.file("../.tooling/daily-speak-release.properties")
+
+val releaseProperties = Properties().apply {
+    if (releasePropertiesFile.exists()) {
+        releasePropertiesFile.inputStream().use(::load)
+    }
+}
+
+val releaseStoreFile = releaseProperties
+    .getProperty("storeFile")
+    ?.takeIf(String::isNotBlank)
+    ?.let { configuredPath ->
+        val configuredFile = File(configuredPath)
+        if (configuredFile.isAbsolute) {
+            configuredFile
+        } else {
+            File(releasePropertiesFile.parentFile, configuredPath)
+        }
+    }
+
+val hasReleaseSigning = releaseStoreFile?.exists() == true &&
+    !releaseProperties.getProperty("storePassword").isNullOrBlank() &&
+    !releaseProperties.getProperty("keyAlias").isNullOrBlank() &&
+    !releaseProperties.getProperty("keyPassword").isNullOrBlank()
 
 fun String.asBuildConfigString(): String {
     val escaped = replace("\\", "\\\\").replace("\"", "\\\"")
@@ -55,9 +85,23 @@ android {
         )
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = releaseStoreFile
+                storePassword = releaseProperties.getProperty("storePassword")
+                keyAlias = releaseProperties.getProperty("keyAlias")
+                keyPassword = releaseProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
