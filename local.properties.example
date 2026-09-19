@@ -1,0 +1,10 @@
+# Copy this file to local.properties and fill in local values.
+# Never commit local.properties.
+
+# Android SDK location
+sdk.dir=D:/github/The-HAN/Daily-speak/.tooling/android-sdk
+
+# DeepSeek configuration
+DEEPSEEK_API_KEY=
+DEEPSEEK_BASE_URL=https://api.deepseek.com/
+DEEPSEEK_MODEL=

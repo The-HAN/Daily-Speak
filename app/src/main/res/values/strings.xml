@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DailySpeak</string>
+
+    <string name="nav_today">今日</string>
+    <string name="nav_review">复习</string>
+    <string name="nav_profile">我的</string>
+
+    <string name="today_title">今日练习</string>
+    <string name="review_title">复习</string>
+    <string name="profile_title">我的</string>
+
+    <string name="streak_days">连续打卡 %1$d 天</string>
+    <string name="progress_count">%1$d / %2$d</string>
+    <string name="play_question">播放问句</string>
+    <string name="show_hint">查看提示</string>
+    <string name="start_answer">开始回答</string>
+    <string name="record">录音</string>
+    <string name="record_hint">点击开始回答</string>
+
+    <string name="review_empty_title">还没有复习内容</string>
+    <string name="review_empty_body">完成练习后，低分题和收藏题会出现在这里。</string>
+
+    <string name="profile_placeholder_title">设置将在后续步骤接入</string>
+    <string name="profile_placeholder_body">每日题量、难度、口音、话题和 DeepSeek API Key 将在这里配置。</string>
+</resources>
