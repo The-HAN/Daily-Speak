@@ -141,6 +141,7 @@ class RoomReviewRepositoryTest {
         grammarSuggestions = emptyList(),
         vocabularySuggestions = emptyList(),
         logicSuggestions = emptyList(),
+        naturalExpressionSuggestions = emptyList(),
         betterAnswer = "Better answer",
         overallComment = "Comment",
         source = "test",

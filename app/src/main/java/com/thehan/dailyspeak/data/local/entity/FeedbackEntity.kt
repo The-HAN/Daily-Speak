@@ -26,6 +26,7 @@ data class FeedbackEntity(
     val grammarSuggestions: List<String>,
     val vocabularySuggestions: List<String>,
     val logicSuggestions: List<String>,
+    val naturalExpressionSuggestions: List<String>,
     val betterAnswer: String,
     val overallComment: String,
     val source: String,

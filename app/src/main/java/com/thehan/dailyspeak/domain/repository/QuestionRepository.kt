@@ -16,4 +16,9 @@ interface QuestionRepository {
     ): List<Question>
 
     suspend fun getQuestion(id: String): Question?
+
+    /**
+     * Persists generated or fetched questions so they remain available offline.
+     */
+    suspend fun cacheQuestions(questions: List<Question>)
 }

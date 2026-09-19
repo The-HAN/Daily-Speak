@@ -19,7 +19,7 @@ import com.thehan.dailyspeak.data.local.entity.QuestionEntity
         FeedbackEntity::class,
         FavoriteEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(DatabaseConverters::class)

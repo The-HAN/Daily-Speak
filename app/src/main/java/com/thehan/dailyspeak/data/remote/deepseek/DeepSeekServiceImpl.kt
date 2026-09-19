@@ -135,6 +135,7 @@ class DeepSeekServiceImpl @Inject constructor(
             grammarSuggestions = payload.grammarSuggestions.clean(),
             vocabularySuggestions = payload.vocabularySuggestions.clean(),
             logicSuggestions = payload.logicSuggestions.clean(),
+            naturalExpressionSuggestions = payload.naturalExpressionSuggestions.clean(),
             betterAnswer = payload.betterAnswer.trim(),
             overallComment = payload.overallComment.trim(),
             source = FeedbackSource.DEEPSEEK,

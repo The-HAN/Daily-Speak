@@ -11,6 +11,7 @@ data class Feedback(
     val grammarSuggestions: List<String> = emptyList(),
     val vocabularySuggestions: List<String> = emptyList(),
     val logicSuggestions: List<String> = emptyList(),
+    val naturalExpressionSuggestions: List<String> = emptyList(),
     val betterAnswer: String = "",
     val overallComment: String = "",
     val source: String = FeedbackSource.LOCAL,

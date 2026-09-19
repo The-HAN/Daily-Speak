@@ -14,6 +14,7 @@ import com.thehan.dailyspeak.domain.repository.AttemptRepository
 import com.thehan.dailyspeak.domain.repository.FeedbackRepository
 import com.thehan.dailyspeak.domain.repository.QuestionRepository
 import com.thehan.dailyspeak.domain.repository.SettingsRepository
+import com.thehan.dailyspeak.domain.service.DeepSeekService
 import com.thehan.dailyspeak.domain.service.PronunciationEvaluator
 import com.thehan.dailyspeak.domain.service.SpeechRecognizerService
 import com.thehan.dailyspeak.domain.service.TranscriptAwarePronunciationEvaluator
@@ -47,9 +48,12 @@ data class RecorderUiState(
 
 data class TodayUiState(
     val isLoading: Boolean = true,
+    val isGeneratingQuestions: Boolean = false,
     val questions: List<Question> = emptyList(),
     val currentIndex: Int = 0,
     val errorMessage: String? = null,
+    val generationMessage: String? = null,
+    val generationError: String? = null,
     val recorder: RecorderUiState = RecorderUiState(),
 ) {
     val currentQuestion: Question?
@@ -69,6 +73,7 @@ data class TodayUiState(
 class TodayViewModel @Inject constructor(
     private val questionRepository: QuestionRepository,
     private val settingsRepository: SettingsRepository,
+    private val deepSeekService: DeepSeekService,
     private val attemptRepository: AttemptRepository,
     private val feedbackRepository: FeedbackRepository,
     private val audioRecorder: AudioRecorder,
@@ -97,6 +102,66 @@ class TodayViewModel @Inject constructor(
 
     fun loadTodayQuestions() {
         viewModelScope.launch { loadQuestions(currentSettings) }
+    }
+
+    /**
+     * Generates questions only after the UI has collected explicit user consent.
+     * Only settings and question metadata are sent; recordings never leave the device.
+     */
+    fun generateDailyQuestionsWithDeepSeek() {
+        val state = _uiState.value
+        if (state.isGeneratingQuestions) return
+
+        val settings = currentSettings
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isGeneratingQuestions = true,
+                    generationMessage = "正在通过 DeepSeek 生成题目…",
+                    generationError = null,
+                    errorMessage = null,
+                )
+            }
+
+            val result = runCatching {
+                deepSeekService.generateDailyQuestions(
+                    date = LocalDate.now().toString(),
+                    count = settings.dailyCount,
+                    level = settings.level,
+                    topics = settings.topics.toList(),
+                ).also { questions ->
+                    check(questions.isNotEmpty()) {
+                        "DeepSeek 没有返回可用题目，请稍后重试。"
+                    }
+                }
+            }
+
+            result.onSuccess { questions ->
+                val cacheResult = runCatching {
+                    questionRepository.cacheQuestions(questions)
+                }
+                _uiState.value = TodayUiState(
+                    isLoading = false,
+                    questions = questions,
+                    generationMessage = if (cacheResult.isSuccess) {
+                        "已生成 ${questions.size} 道题，并缓存到本机。"
+                    } else {
+                        "题目已生成，但本地缓存失败；当前仍可继续练习。"
+                    },
+                )
+                pendingAnalysis = null
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        isGeneratingQuestions = false,
+                        generationMessage = null,
+                        generationError = error.message
+                            ?: "AI 出题失败，已保留当前题目。",
+                    )
+                }
+            }
+        }
     }
 
     fun moveToNextQuestion() {
@@ -366,10 +431,15 @@ class TodayViewModel @Inject constructor(
                 topics = settings.topics.toList(),
             )
         }.onSuccess { questions ->
-            _uiState.value = TodayUiState(
-                isLoading = false,
-                questions = questions,
-            )
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    questions = questions,
+                    currentIndex = 0,
+                    errorMessage = null,
+                    recorder = RecorderUiState(),
+                )
+            }
             pendingAnalysis = null
         }.onFailure { error ->
             _uiState.update {

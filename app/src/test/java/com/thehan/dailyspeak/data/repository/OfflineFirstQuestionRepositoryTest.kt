@@ -3,8 +3,11 @@ package com.thehan.dailyspeak.data.repository
 import com.thehan.dailyspeak.data.local.dao.QuestionDao
 import com.thehan.dailyspeak.data.local.entity.QuestionEntity
 import com.thehan.dailyspeak.domain.model.PracticeLevel
+import com.thehan.dailyspeak.domain.model.Question
+import com.thehan.dailyspeak.domain.model.ReferenceAnswers
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -55,6 +58,34 @@ class OfflineFirstQuestionRepositoryTest {
 
         assertTrue(result.isNotEmpty())
         assertTrue(result.all { it.topic == "环境保护" })
+    }
+
+    @Test
+    fun cachesGeneratedQuestionsAndRetrievesThemById() = runTest {
+        val dao = FakeQuestionDao()
+        val repository = OfflineFirstQuestionRepository(dao)
+        val generated = Question(
+            id = "deepseek-2026-09-19-0",
+            englishQuestion = "What is one habit that helps you study?",
+            chineseMeaning = "哪一个习惯有助于你的学习？",
+            topic = "教育与学习",
+            difficulty = PracticeLevel.POSTGRADUATE,
+            source = "deepseek",
+            keyPhrases = listOf("keep me focused"),
+            referenceAnswers = ReferenceAnswers(
+                daily = "I make a plan.",
+                advanced = "I make a short plan before studying.",
+                postgraduate = "I make a short plan before studying, which keeps me focused.",
+            ),
+            createdAtEpochMillis = 1L,
+        )
+
+        repository.cacheQuestions(listOf(generated))
+
+        val cached = repository.getQuestion(generated.id)
+        assertNotNull(cached)
+        assertEquals(generated, cached)
+        assertEquals(listOf(generated.id), dao.upsertedQuestions.map { it.id })
     }
 
     private class FakeQuestionDao : QuestionDao {

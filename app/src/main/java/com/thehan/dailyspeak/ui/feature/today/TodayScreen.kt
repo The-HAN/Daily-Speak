@@ -50,6 +50,7 @@ fun TodayScreen(
     onRecordClick: () -> Unit,
     onPlayQuestion: () -> Unit,
     onRetryAnalysis: () -> Unit,
+    onGenerateWithDeepSeek: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val todayLabel = remember {
@@ -80,11 +81,15 @@ fun TodayScreen(
                 progressCurrent = uiState.progressCurrent,
                 progressTotal = uiState.progressTotal,
                 canMoveNext = uiState.canMoveNext,
+                isGeneratingQuestions = uiState.isGeneratingQuestions,
+                generationMessage = uiState.generationMessage,
+                generationError = uiState.generationError,
                 recorder = uiState.recorder,
                 onNextQuestion = onNextQuestion,
                 onRecordClick = onRecordClick,
                 onPlayQuestion = onPlayQuestion,
                 onRetryAnalysis = onRetryAnalysis,
+                onGenerateWithDeepSeek = onGenerateWithDeepSeek,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -99,11 +104,15 @@ private fun PracticeContent(
     progressCurrent: Int,
     progressTotal: Int,
     canMoveNext: Boolean,
+    isGeneratingQuestions: Boolean,
+    generationMessage: String?,
+    generationError: String?,
     recorder: RecorderUiState,
     onNextQuestion: () -> Unit,
     onRecordClick: () -> Unit,
     onPlayQuestion: () -> Unit,
     onRetryAnalysis: () -> Unit,
+    onGenerateWithDeepSeek: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var hintVisible by rememberSaveable(question.id) { mutableStateOf(false) }
@@ -114,7 +123,14 @@ private fun PracticeContent(
             progressCurrent = progressCurrent,
             progressTotal = progressTotal,
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+        DeepSeekQuestionCard(
+            isGenerating = isGeneratingQuestions,
+            message = generationMessage,
+            errorMessage = generationError,
+            onClick = onGenerateWithDeepSeek,
+        )
+        Spacer(modifier = Modifier.height(16.dp))
         QuestionCard(
             question = question,
             hintVisible = hintVisible,
@@ -135,6 +151,53 @@ private fun PracticeContent(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("下一题")
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeepSeekQuestionCard(
+    isGenerating: Boolean,
+    message: String?,
+    errorMessage: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "AI 动态出题",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                val helper = errorMessage
+                    ?: message
+                    ?: "按当前难度和话题偏好生成，可离线缓存。"
+                Text(
+                    text = helper,
+                    modifier = Modifier.padding(top = 2.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (errorMessage != null) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+            OutlinedButton(
+                onClick = onClick,
+                enabled = !isGenerating,
+            ) {
+                Text(if (isGenerating) "生成中…" else "生成")
             }
         }
     }
@@ -456,6 +519,7 @@ private fun TodayScreenPreview() {
             onRecordClick = { },
             onPlayQuestion = { },
             onRetryAnalysis = { },
+            onGenerateWithDeepSeek = { },
         )
     }
 }

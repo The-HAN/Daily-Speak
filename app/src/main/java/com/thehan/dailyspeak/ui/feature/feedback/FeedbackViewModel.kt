@@ -12,6 +12,7 @@ import com.thehan.dailyspeak.domain.repository.FavoriteRepository
 import com.thehan.dailyspeak.domain.repository.FeedbackRepository
 import com.thehan.dailyspeak.domain.repository.QuestionRepository
 import com.thehan.dailyspeak.domain.repository.SettingsRepository
+import com.thehan.dailyspeak.domain.service.DeepSeekService
 import com.thehan.dailyspeak.domain.service.TtsService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -30,6 +31,9 @@ data class FeedbackUiState(
     val isUpdatingFavorite: Boolean = false,
     val accent: AccentPreference = AccentPreference.AMERICAN,
     val ttsEnabled: Boolean = true,
+    val isGeneratingAiFeedback: Boolean = false,
+    val aiFeedbackMessage: String? = null,
+    val aiFeedbackError: String? = null,
     val errorMessage: String? = null,
 )
 
@@ -41,6 +45,7 @@ class FeedbackViewModel @Inject constructor(
     private val feedbackRepository: FeedbackRepository,
     private val favoriteRepository: FavoriteRepository,
     private val settingsRepository: SettingsRepository,
+    private val deepSeekService: DeepSeekService,
     private val ttsService: TtsService,
 ) : ViewModel() {
     private val attemptId: Long = checkNotNull(
@@ -133,6 +138,75 @@ class FeedbackViewModel @Inject constructor(
         val state = _uiState.value
         if (!state.ttsEnabled || text.isBlank()) return
         ttsService.speak(text, state.accent)
+    }
+
+    /**
+     * Requests richer content coaching after the UI has collected explicit consent.
+     * The audio file is never passed to this method or uploaded by it.
+     */
+    fun generateAiFeedback() {
+        val state = _uiState.value
+        val attempt = state.attempt ?: return
+        val question = state.question ?: return
+        val localFeedback = state.feedback ?: return
+        if (state.isGeneratingAiFeedback) return
+        if (attempt.transcript.isBlank()) {
+            _uiState.update {
+                it.copy(aiFeedbackError = "没有可分析的转写文本，请先重新录音。")
+            }
+            return
+        }
+
+        _uiState.update {
+            it.copy(
+                isGeneratingAiFeedback = true,
+                aiFeedbackMessage = "正在请求 DeepSeek 生成改善建议…",
+                aiFeedbackError = null,
+            )
+        }
+        viewModelScope.launch {
+            runCatching {
+                deepSeekService.evaluateAnswer(
+                    question = question,
+                    transcript = attempt.transcript,
+                    pronunciationScore = localFeedback.toPronunciationScore(),
+                ).copy(attemptId = attemptId)
+            }.onSuccess { aiFeedback ->
+                runCatching {
+                    feedbackRepository.save(aiFeedback)
+                }.fold(
+                    onSuccess = {
+                        _uiState.update {
+                            it.copy(
+                                feedback = aiFeedback,
+                                isGeneratingAiFeedback = false,
+                                aiFeedbackMessage = "AI 建议已生成并缓存到本机。",
+                                aiFeedbackError = null,
+                            )
+                        }
+                    },
+                    onFailure = { error ->
+                        _uiState.update {
+                            it.copy(
+                                feedback = aiFeedback,
+                                isGeneratingAiFeedback = false,
+                                aiFeedbackMessage = "AI 建议已生成，但本次未能保存到本机。",
+                                aiFeedbackError = error.message,
+                            )
+                        }
+                    },
+                )
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isGeneratingAiFeedback = false,
+                        aiFeedbackMessage = null,
+                        aiFeedbackError = error.message
+                            ?: "AI 建议生成失败，已保留本地反馈。",
+                    )
+                }
+            }
+        }
     }
 
     override fun onCleared() {

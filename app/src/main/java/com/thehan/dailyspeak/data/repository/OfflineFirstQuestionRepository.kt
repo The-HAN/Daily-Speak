@@ -39,6 +39,11 @@ class OfflineFirstQuestionRepository @Inject constructor(
     override suspend fun getQuestion(id: String): Question? =
         questionDao.getById(id)?.toDomain()
 
+    override suspend fun cacheQuestions(questions: List<Question>) {
+        if (questions.isEmpty()) return
+        questionDao.upsertAll(questions.map { it.toEntity() })
+    }
+
     private fun selectCandidates(
         allQuestions: List<Question>,
         level: PracticeLevel,

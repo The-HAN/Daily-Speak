@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.thehan.dailyspeak.domain.model.Attempt
 import com.thehan.dailyspeak.domain.model.Feedback
+import com.thehan.dailyspeak.domain.model.FeedbackSource
 import com.thehan.dailyspeak.domain.model.PracticeLevel
 import com.thehan.dailyspeak.domain.model.Question
 import com.thehan.dailyspeak.domain.model.ReferenceAnswers
@@ -61,6 +62,7 @@ fun FeedbackScreen(
     onNextQuestion: () -> Unit,
     onToggleFavorite: () -> Unit,
     onPlayReferenceAnswer: (String) -> Unit,
+    onGenerateAiFeedback: () -> Unit,
     onRetryLoad: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -100,6 +102,10 @@ fun FeedbackScreen(
                         attempt = attempt,
                         feedback = feedback,
                         onPlayReferenceAnswer = onPlayReferenceAnswer,
+                        isGeneratingAiFeedback = uiState.isGeneratingAiFeedback,
+                        aiFeedbackMessage = uiState.aiFeedbackMessage,
+                        aiFeedbackError = uiState.aiFeedbackError,
+                        onGenerateAiFeedback = onGenerateAiFeedback,
                     )
                 }
             }
@@ -164,6 +170,10 @@ private fun FeedbackContent(
     attempt: Attempt,
     feedback: Feedback,
     onPlayReferenceAnswer: (String) -> Unit,
+    isGeneratingAiFeedback: Boolean,
+    aiFeedbackMessage: String?,
+    aiFeedbackError: String?,
+    onGenerateAiFeedback: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         QuestionHeroCard(question)
@@ -232,6 +242,15 @@ private fun FeedbackContent(
             SuggestionBlock("语法", feedback.grammarSuggestions)
             SuggestionBlock("词汇", feedback.vocabularySuggestions)
             SuggestionBlock("逻辑", feedback.logicSuggestions)
+            SuggestionBlock("地道表达", feedback.naturalExpressionSuggestions)
+
+            AiFeedbackAction(
+                isDeepSeekFeedback = feedback.source == FeedbackSource.DEEPSEEK,
+                isGenerating = isGeneratingAiFeedback,
+                message = aiFeedbackMessage,
+                errorMessage = aiFeedbackError,
+                onClick = onGenerateAiFeedback,
+            )
 
             if (feedback.betterAnswer.isNotBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
@@ -251,6 +270,7 @@ private fun FeedbackContent(
                 feedback.grammarSuggestions.isEmpty() &&
                 feedback.vocabularySuggestions.isEmpty() &&
                 feedback.logicSuggestions.isEmpty() &&
+                feedback.naturalExpressionSuggestions.isEmpty() &&
                 feedback.betterAnswer.isBlank()
             ) {
                 Text(
@@ -259,6 +279,61 @@ private fun FeedbackContent(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun AiFeedbackAction(
+    isDeepSeekFeedback: Boolean,
+    isGenerating: Boolean,
+    message: String?,
+    errorMessage: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = if (isDeepSeekFeedback) "AI 建议已生成" else "获取更具体的内容建议",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = "将题目和语音转写文本发送给 DeepSeek，不会上传录音文件。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        OutlinedButton(
+            onClick = onClick,
+            enabled = !isGenerating,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                when {
+                    isGenerating -> "生成中…"
+                    isDeepSeekFeedback -> "重新生成 AI 建议"
+                    else -> "生成 AI 建议"
+                },
+            )
+        }
+        message?.let {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        errorMessage?.let {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }
