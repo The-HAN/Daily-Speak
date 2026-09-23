@@ -66,3 +66,7 @@
 - [x] 应用图标、启动页、版本号和 Release 签名配置。
 - [x] 构建并校验 v0.1.0 可安装 Release APK。
 - [x] 构建并校验 v0.2.0 可安装 Release APK。
+- [x] 增加 App 内 DeepSeek 模型名称配置，并按“本地覆盖值优先、BuildConfig 回退”读取。
+- [x] 每日题目改为同日稳定、跨天轮换的随机选题，DeepSeek 出题加入随机标识。
+- [x] 增大预设背景的主题色相和饱和度差异。
+- [x] 构建并校验 v0.3.0 可安装 Release APK。

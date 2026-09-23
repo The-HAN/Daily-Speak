@@ -74,19 +74,19 @@ fun AppBackground(
 private fun BackgroundPreset.gradient(darkTheme: Boolean): Brush {
     val colors = if (darkTheme) {
         when (this) {
-            BackgroundPreset.DEFAULT -> listOf(Color(0xFF111512), Color(0xFF171D19))
-            BackgroundPreset.MIST -> listOf(Color(0xFF15191A), Color(0xFF101415))
-            BackgroundPreset.MINT -> listOf(Color(0xFF13201A), Color(0xFF101612))
-            BackgroundPreset.PEACH -> listOf(Color(0xFF251A17), Color(0xFF15110F))
-            BackgroundPreset.SKY -> listOf(Color(0xFF14202A), Color(0xFF101519))
+            BackgroundPreset.DEFAULT -> listOf(Color(0xFF211D16), Color(0xFF171510))
+            BackgroundPreset.MIST -> listOf(Color(0xFF1B2028), Color(0xFF11161D))
+            BackgroundPreset.MINT -> listOf(Color(0xFF0E2A1A), Color(0xFF091B11))
+            BackgroundPreset.PEACH -> listOf(Color(0xFF381B13), Color(0xFF24110C))
+            BackgroundPreset.SKY -> listOf(Color(0xFF0C2440), Color(0xFF09182B))
         }
     } else {
         when (this) {
-            BackgroundPreset.DEFAULT -> listOf(Color(0xFFF7F7F3), Color(0xFFF1F5F0))
-            BackgroundPreset.MIST -> listOf(Color(0xFFEEF3F4), Color(0xFFF8F9FA))
-            BackgroundPreset.MINT -> listOf(Color(0xFFE8F3ED), Color(0xFFF7FAF8))
-            BackgroundPreset.PEACH -> listOf(Color(0xFFFBEEE7), Color(0xFFF8F7F2))
-            BackgroundPreset.SKY -> listOf(Color(0xFFE8F0F8), Color(0xFFF7F8FA))
+            BackgroundPreset.DEFAULT -> listOf(Color(0xFFFAF4E8), Color(0xFFF3EBDD))
+            BackgroundPreset.MIST -> listOf(Color(0xFFE8EDF3), Color(0xFFDDE6F0))
+            BackgroundPreset.MINT -> listOf(Color(0xFFDDF3E3), Color(0xFFCDEAD8))
+            BackgroundPreset.PEACH -> listOf(Color(0xFFFFE2D2), Color(0xFFF7D3C0))
+            BackgroundPreset.SKY -> listOf(Color(0xFFD8E8FA), Color(0xFFC6DDF4))
         }
     }
     return Brush.verticalGradient(colors)

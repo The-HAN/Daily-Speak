@@ -27,9 +27,11 @@ class DeepSeekRemoteDataSource @Inject constructor(
             "尚未配置 DeepSeek API Key。请前往“我的”页面配置。"
         }
 
-        val model = BuildConfig.DEEPSEEK_MODEL.trim()
+        val model = settings.deepSeekModel
+            .ifBlank { BuildConfig.DEEPSEEK_MODEL }
+            .trim()
         check(model.isNotBlank()) {
-            "尚未配置 DeepSeek 模型名。请在 local.properties 中设置 DEEPSEEK_MODEL，并以官方文档为准。"
+            "尚未配置 DeepSeek 模型名。请前往“我的 → DeepSeek API”填写，或在 local.properties 中设置 DEEPSEEK_MODEL。"
         }
 
         return try {

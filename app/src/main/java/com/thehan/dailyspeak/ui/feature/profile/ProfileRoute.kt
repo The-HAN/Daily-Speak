@@ -71,6 +71,7 @@ fun ProfileRoute(
     ProfileScreen(
         uiState = uiState,
         hasBuildConfigApiKey = BuildConfig.DEEPSEEK_API_KEY.isNotBlank(),
+        buildConfigModel = BuildConfig.DEEPSEEK_MODEL,
         onDailyCountChange = viewModel::setDailyCount,
         onLevelChange = viewModel::setLevel,
         onAccentChange = viewModel::setAccent,
@@ -78,6 +79,7 @@ fun ProfileRoute(
         onReminderEnabledChange = onReminderEnabledChange,
         onReminderTimeChange = viewModel::setReminderTime,
         onSaveApiKey = viewModel::saveDeepSeekApiKey,
+        onSaveModel = viewModel::saveDeepSeekModel,
         onTtsEnabledChange = viewModel::setTtsEnabled,
         onSpeechRecognizerModeChange = viewModel::setSpeechRecognizerMode,
         onSpeechRecognizerServiceChange = viewModel::selectSpeechRecognizerService,

@@ -9,6 +9,7 @@ import com.thehan.dailyspeak.domain.model.PronunciationScore
 import com.thehan.dailyspeak.domain.model.Question
 import com.thehan.dailyspeak.domain.model.ReferenceAnswers
 import com.thehan.dailyspeak.domain.service.DeepSeekService
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.serialization.Serializable
@@ -26,6 +27,7 @@ class DeepSeekServiceImpl @Inject constructor(
         topics: List<String>,
     ): List<Question> {
         val requestedCount = count.coerceIn(1, 20)
+        val generationNonce = UUID.randomUUID().toString()
         val raw = remoteDataSource.complete(
             systemPrompt = QUESTION_SYSTEM_PROMPT,
             userPrompt = buildString {
@@ -33,6 +35,8 @@ class DeepSeekServiceImpl @Inject constructor(
                 appendLine("题量：$requestedCount")
                 appendLine("难度：${level.toPromptValue()}")
                 appendLine("话题偏好：${topics.ifEmpty { listOf("不限") }.joinToString("、")}")
+                appendLine("随机生成标识：$generationNonce")
+                appendLine("要求：本次必须生成新的原创问句，避免复用常见模板；同批题目之间不得重复。")
                 appendLine()
                 appendLine("只返回 JSON，不要解释，不要 Markdown：")
                 appendLine(
@@ -256,7 +260,7 @@ class DeepSeekServiceImpl @Inject constructor(
 
     private companion object {
         const val QUESTION_SYSTEM_PROMPT =
-            "你是考研英语口语教练。题目必须原创、可口语作答、避免敏感或侵权内容。严格输出用户要求的 JSON。"
+            "你是考研英语口语教练。题目必须原创、可口语作答、避免敏感或侵权内容；每次请求都应主动变化问法和话题切入点。严格输出用户要求的 JSON。"
         const val TRANSLATION_SYSTEM_PROMPT =
             "你是英语教师。将英文问句翻译成准确自然的中文，严格输出 JSON。"
         const val REFERENCE_SYSTEM_PROMPT =

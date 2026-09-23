@@ -24,7 +24,7 @@ Core: Audio / Speech / TTS / DI
 ## 3. 当前实现
 
 - `QuestionRepository`：`OfflineFirstQuestionRepository` 首次启动写入原创本地题库，之后按日期、难度和话题稳定选题。
-- `SettingsRepository`：`DataStoreSettingsRepository` 持久化每日题量、难度、口音、话题、提醒开关、提醒时间、API Key 覆盖值、语音识别服务选择和背景配置。
+- `SettingsRepository`：`DataStoreSettingsRepository` 持久化每日题量、难度、口音、话题、提醒开关、提醒时间、API Key、模型名称覆盖值、语音识别服务选择和背景配置。
 - `AttemptRepository`：`RoomAttemptRepository` 保存录音记录和转写。
 - `FeedbackRepository`：`RoomFeedbackRepository` 保存并读取反馈。
 - `FavoriteRepository`：`RoomFavoriteRepository` 管理题目收藏。
@@ -102,7 +102,7 @@ Today/Feedback UI 当前遵循以下顺序：
 
 1. 优先读取 Room 缓存和本地题库。
 2. 只有用户主动启用云端 AI 并确认发送内容后，才调用 DeepSeek。
-3. API Key 从 DataStore 覆盖值或 `BuildConfig` 读取，模型名从 `DEEPSEEK_MODEL` 读取。
+3. API Key 和模型名均优先从 DataStore 覆盖值读取；未配置时回退到 `BuildConfig`。
 4. 网络失败时保留本地 Attempt 和本地反馈，不清空用户数据。
 5. 不把 `deepseek-v4.1-flash` 等未确认名称写入源码；必须以 DeepSeek 官方文档和真实联调结果为准。
 

@@ -44,6 +44,7 @@ import kotlin.math.roundToInt
 fun ProfileScreen(
     uiState: ProfileUiState,
     hasBuildConfigApiKey: Boolean,
+    buildConfigModel: String,
     onDailyCountChange: (Int) -> Unit,
     onLevelChange: (PracticeLevel) -> Unit,
     onAccentChange: (AccentPreference) -> Unit,
@@ -51,6 +52,7 @@ fun ProfileScreen(
     onReminderEnabledChange: (Boolean) -> Unit,
     onReminderTimeChange: (String) -> Unit,
     onSaveApiKey: (String) -> Unit,
+    onSaveModel: (String) -> Unit,
     onTtsEnabledChange: (Boolean) -> Unit,
     onSpeechRecognizerModeChange: (SpeechRecognizerMode) -> Unit,
     onSpeechRecognizerServiceChange: (String) -> Unit,
@@ -159,7 +161,7 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(16.dp))
         SettingsCard(title = "界面与背景") {
             Text(
-                text = "选择低饱和预设，或用本地图片替换应用背景。",
+                text = "选择辨识度更高的低中饱和预设，或用本地图片替换应用背景。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -375,7 +377,36 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
         SettingsCard(title = "DeepSeek API") {
+            var modelDraft by rememberSaveable(settings.deepSeekModel) {
+                mutableStateOf(settings.deepSeekModel)
+            }
             var apiKeyDraft by rememberSaveable { mutableStateOf("") }
+            OutlinedTextField(
+                value = modelDraft,
+                onValueChange = { modelDraft = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("模型名称") },
+                placeholder = { Text("请输入 DeepSeek 官方模型 ID") },
+                supportingText = {
+                    Text(
+                        text = when {
+                            modelDraft.isNotBlank() -> "当前使用 App 内配置的模型。"
+                            buildConfigModel.isNotBlank() -> "当前使用构建配置：$buildConfigModel"
+                            else -> "尚未配置模型；请按 DeepSeek 官方文档填写。"
+                        },
+                    )
+                },
+                singleLine = true,
+            )
+            Button(
+                onClick = { onSaveModel(modelDraft) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+            ) {
+                Text(if (modelDraft.isBlank()) "清除 App 内模型配置" else "保存模型")
+            }
+            HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp))
             Text(
                 text = if (hasBuildConfigApiKey) {
                     "已从 local.properties 读取 API Key；下方可保存仅本机使用的覆盖值。"

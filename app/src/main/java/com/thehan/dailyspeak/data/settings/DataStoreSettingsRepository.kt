@@ -48,6 +48,7 @@ class DataStoreSettingsRepository @Inject constructor(
                     ?.takeIf(REMINDER_TIME_REGEX::matches)
                     ?: UserSettings.DEFAULT_REMINDER_TIME,
                 deepSeekApiKey = preferences[Keys.DEEPSEEK_API_KEY].orEmpty(),
+                deepSeekModel = preferences[Keys.DEEPSEEK_MODEL].orEmpty(),
                 ttsEnabled = preferences[Keys.TTS_ENABLED] ?: true,
                 speechRecognizerMode = preferences[Keys.SPEECH_RECOGNIZER_MODE]
                     ?.let(::speechRecognizerModeOrNull)
@@ -97,6 +98,17 @@ class DataStoreSettingsRepository @Inject constructor(
                 preferences.remove(Keys.DEEPSEEK_API_KEY)
             } else {
                 preferences[Keys.DEEPSEEK_API_KEY] = normalized
+            }
+        }
+    }
+
+    override suspend fun setDeepSeekModel(model: String) {
+        dataStore.edit { preferences ->
+            val normalized = model.trim()
+            if (normalized.isEmpty()) {
+                preferences.remove(Keys.DEEPSEEK_MODEL)
+            } else {
+                preferences[Keys.DEEPSEEK_MODEL] = normalized
             }
         }
     }
@@ -155,6 +167,7 @@ class DataStoreSettingsRepository @Inject constructor(
         val REMINDER_ENABLED = booleanPreferencesKey("reminder_enabled")
         val REMINDER_TIME = stringPreferencesKey("reminder_time")
         val DEEPSEEK_API_KEY = stringPreferencesKey("deepseek_api_key")
+        val DEEPSEEK_MODEL = stringPreferencesKey("deepseek_model")
         val TTS_ENABLED = booleanPreferencesKey("tts_enabled")
         val SPEECH_RECOGNIZER_MODE = stringPreferencesKey("speech_recognizer_mode")
         val SPEECH_RECOGNIZER_COMPONENT = stringPreferencesKey("speech_recognizer_component")

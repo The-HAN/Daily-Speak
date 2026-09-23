@@ -61,6 +61,46 @@ class OfflineFirstQuestionRepositoryTest {
     }
 
     @Test
+    fun keepsTheSameDailySetWithinOneDate() = runTest {
+        val repository = OfflineFirstQuestionRepository(FakeQuestionDao())
+
+        val first = repository.getDailyQuestions(
+            date = "2026-09-19",
+            count = 4,
+            level = PracticeLevel.MIXED,
+            topics = emptyList(),
+        )
+        val second = repository.getDailyQuestions(
+            date = "2026-09-19",
+            count = 4,
+            level = PracticeLevel.MIXED,
+            topics = emptyList(),
+        )
+
+        assertEquals(first.map { it.id }, second.map { it.id })
+    }
+
+    @Test
+    fun changesTheDailySetOnTheNextDate() = runTest {
+        val repository = OfflineFirstQuestionRepository(FakeQuestionDao())
+
+        val first = repository.getDailyQuestions(
+            date = "2026-09-19",
+            count = 3,
+            level = PracticeLevel.MIXED,
+            topics = emptyList(),
+        )
+        val nextDay = repository.getDailyQuestions(
+            date = "2026-09-20",
+            count = 3,
+            level = PracticeLevel.MIXED,
+            topics = emptyList(),
+        )
+
+        assertTrue(first.map { it.id } != nextDay.map { it.id })
+    }
+
+    @Test
     fun cachesGeneratedQuestionsAndRetrievesThemById() = runTest {
         val dao = FakeQuestionDao()
         val repository = OfflineFirstQuestionRepository(dao)

@@ -104,6 +104,10 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setDeepSeekApiKey(apiKey) }
     }
 
+    fun saveDeepSeekModel(model: String) {
+        viewModelScope.launch { settingsRepository.setDeepSeekModel(model) }
+    }
+
     fun setTtsEnabled(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setTtsEnabled(enabled) }
     }

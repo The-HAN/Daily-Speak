@@ -7,6 +7,7 @@ import com.thehan.dailyspeak.data.mapper.toEntity
 import com.thehan.dailyspeak.domain.model.PracticeLevel
 import com.thehan.dailyspeak.domain.model.Question
 import com.thehan.dailyspeak.domain.repository.QuestionRepository
+import java.time.LocalDate
 import javax.inject.Inject
 
 class OfflineFirstQuestionRepository @Inject constructor(
@@ -29,11 +30,11 @@ class OfflineFirstQuestionRepository @Inject constructor(
             topics = topics,
         )
         val requested = count.coerceIn(1, MAX_DAILY_COUNT)
-        val startIndex = Math.floorMod(date.hashCode(), candidates.size)
-
-        return List(minOf(requested, candidates.size)) { offset ->
-            candidates[(startIndex + offset) % candidates.size]
-        }
+        return selectDailyQuestions(
+            candidates = candidates,
+            date = date,
+            requested = requested,
+        )
     }
 
     override suspend fun getQuestion(id: String): Question? =
@@ -63,6 +64,41 @@ class OfflineFirstQuestionRepository @Inject constructor(
             .ifEmpty { allQuestions }
     }
 
+    /**
+     * Randomizes the pool once, then rotates through it in non-overlapping daily blocks.
+     * The same date/level/topic combination is stable, while consecutive days avoid merely
+     * shifting the previous list by one item.
+     */
+    private fun selectDailyQuestions(
+        candidates: List<Question>,
+        date: String,
+        requested: Int,
+    ): List<Question> {
+        if (candidates.isEmpty()) return emptyList()
+
+        val shuffledPool = candidates.sortedWith(
+            compareBy<Question> { it.id.stableOrderHash() }
+                .thenBy { it.id },
+        )
+        val epochDay = runCatching { LocalDate.parse(date).toEpochDay() }
+            .getOrElse { date.hashCode().toLong() }
+        val rotation = epochDay * requested + if (requested >= shuffledPool.size) epochDay else 0L
+        val startIndex = Math.floorMod(rotation, shuffledPool.size.toLong()).toInt()
+        val resultSize = minOf(requested, shuffledPool.size)
+
+        return List(resultSize) { offset ->
+            shuffledPool[(startIndex + offset) % shuffledPool.size]
+        }
+    }
+
+    private fun String.stableOrderHash(): Int {
+        var hash = FNV_OFFSET_BASIS.toInt()
+        for (character in this) {
+            hash = (hash xor character.code) * FNV_PRIME
+        }
+        return hash
+    }
+
     private suspend fun seedIfNeeded() {
         if (questionDao.count() == 0) {
             questionDao.upsertAll(LocalQuestionBank.questions.map { it.toEntity() })
@@ -71,5 +107,7 @@ class OfflineFirstQuestionRepository @Inject constructor(
 
     private companion object {
         const val MAX_DAILY_COUNT = 20
+        const val FNV_OFFSET_BASIS = 0x811c9dc5L
+        const val FNV_PRIME = 0x01000193
     }
 }

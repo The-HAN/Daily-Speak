@@ -8,6 +8,7 @@ data class UserSettings(
     val reminderEnabled: Boolean = false,
     val reminderTime: String = DEFAULT_REMINDER_TIME,
     val deepSeekApiKey: String = "",
+    val deepSeekModel: String = "",
     val ttsEnabled: Boolean = true,
     val speechRecognizerMode: SpeechRecognizerMode = SpeechRecognizerMode.SYSTEM_DEFAULT,
     val speechRecognizerComponent: String = "",

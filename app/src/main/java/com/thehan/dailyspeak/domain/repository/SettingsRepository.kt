@@ -24,6 +24,8 @@ interface SettingsRepository {
 
     suspend fun setDeepSeekApiKey(apiKey: String)
 
+    suspend fun setDeepSeekModel(model: String)
+
     suspend fun setTtsEnabled(enabled: Boolean)
 
     suspend fun setSpeechRecognizerMode(mode: SpeechRecognizerMode)
