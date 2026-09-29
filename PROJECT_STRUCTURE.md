@@ -22,7 +22,7 @@ Daily-Speak/
 │       │   │   │   │   ├── entity/           # Room Entity
 │       │   │   │   │   └── seed/             # 本地原创题库
 │       │   │   │   ├── mapper/               # Entity 与 Domain 映射
-│       │   │   │   ├── remote/deepseek/      # Retrofit DTO、API、Service
+│       │   │   │   ├── remote/deepseek/      # Retrofit DTO、/models、Chat Completions
 │       │   │   │   ├── repository/           # Repository 实现
 │       │   │   │   └── settings/             # DataStore 设置持久化
 │       │   │   ├── domain/
@@ -51,7 +51,7 @@ Daily-Speak/
 ├── scripts/
 │   └── build.ps1                              # 使用仓库外工具链构建与测试
 ├── dist/
-│   └── Daily-Speak-v0.4.0.apk                 # 已签名的本机发布产物，Git 忽略
+│   └── Daily-Speak-v0.5.0.apk                 # 已签名的本机发布产物，Git 忽略
 ├── build.gradle.kts
 ├── settings.gradle.kts
 ├── local.properties.example
@@ -63,6 +63,7 @@ Daily-Speak/
 ├── RELEASE_NOTES_v0.2.0.md
 ├── RELEASE_NOTES_v0.3.0.md
 ├── RELEASE_NOTES_v0.4.0.md
+├── RELEASE_NOTES_v0.5.0.md
 └── README.md
 ```
 
@@ -132,7 +133,8 @@ flowchart TD
     E --> F{用户允许云端 AI?}
     F -->|是| G[DeepSeekService.generateDailyQuestions]
     F -->|否| D
-    G --> D
+    G --> BATCH[每批最多 5 题 chat/completions]
+    BATCH --> D
     D --> H[显示英文问题]
     H --> I[录音与本地 Attempt]
     I --> J[SpeechRecognizerService]
@@ -145,7 +147,13 @@ flowchart TD
     O --> P[反馈页]
 ```
 
-## 5. 关键接口
+## 5. DeepSeek 接口与超时策略
+
+- API Key 保存在本机 DataStore，模型列表来自官方 `/models`，用户点击选择后同样保存。
+- 今日题量大于 5 时，客户端拆成每批最多 5 题的请求，降低单次响应过大导致的超时。
+- OkHttp 使用 20 秒连接、180 秒读取、30 秒写入和 200 秒总调用超时；超时错误会转换为可读提示。
+
+## 6. 关键接口
 
 ```kotlin
 interface QuestionRepository {

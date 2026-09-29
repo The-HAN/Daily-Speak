@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -68,9 +69,24 @@ fun ProfileRoute(
         }
     }
 
+    val hasBuildConfigApiKey = BuildConfig.DEEPSEEK_API_KEY.isNotBlank()
+    LaunchedEffect(
+        uiState.isLoading,
+        uiState.settings.deepSeekApiKey,
+        hasBuildConfigApiKey,
+        uiState.hasAttemptedModelLoad,
+    ) {
+        if (
+            !uiState.isLoading &&
+            !uiState.hasAttemptedModelLoad &&
+            (uiState.settings.deepSeekApiKey.isNotBlank() || hasBuildConfigApiKey)
+        ) {
+            viewModel.loadDeepSeekModels(uiState.settings.deepSeekApiKey)
+        }
+    }
     ProfileScreen(
         uiState = uiState,
-        hasBuildConfigApiKey = BuildConfig.DEEPSEEK_API_KEY.isNotBlank(),
+        hasBuildConfigApiKey = hasBuildConfigApiKey,
         buildConfigModel = BuildConfig.DEEPSEEK_MODEL,
         onDailyCountChange = viewModel::setDailyCount,
         onLevelChange = viewModel::setLevel,
@@ -80,6 +96,7 @@ fun ProfileRoute(
         onReminderTimeChange = viewModel::setReminderTime,
         onSaveApiKey = viewModel::saveDeepSeekApiKey,
         onSaveModel = viewModel::saveDeepSeekModel,
+        onLoadModels = viewModel::loadDeepSeekModels,
         onTtsEnabledChange = viewModel::setTtsEnabled,
         onSpeechRecognizerModeChange = viewModel::setSpeechRecognizerMode,
         onSpeechRecognizerServiceChange = viewModel::selectSpeechRecognizerService,

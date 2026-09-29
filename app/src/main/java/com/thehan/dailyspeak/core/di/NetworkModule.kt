@@ -10,6 +10,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
@@ -32,6 +33,11 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(180, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .callTimeout(200, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
         .addInterceptor(
             HttpLoggingInterceptor().apply {
                 level = if (BuildConfig.DEBUG) {
@@ -50,7 +56,7 @@ object NetworkModule {
         client: OkHttpClient,
         json: Json,
     ): Retrofit = Retrofit.Builder()
-        .baseUrl(BuildConfig.DEEPSEEK_BASE_URL)
+        .baseUrl(normalizedBaseUrl(BuildConfig.DEEPSEEK_BASE_URL))
         .client(client)
         .addConverterFactory(
             json.asConverterFactory("application/json".toMediaType()),
@@ -71,4 +77,8 @@ abstract class DeepSeekServiceModule {
     abstract fun bindDeepSeekService(
         service: DeepSeekServiceImpl,
     ): DeepSeekService
+}
+private fun normalizedBaseUrl(raw: String): String {
+    val value = raw.trim().ifBlank { "https://api.deepseek.com/" }
+    return if (value.endsWith('/')) value else "$value/"
 }

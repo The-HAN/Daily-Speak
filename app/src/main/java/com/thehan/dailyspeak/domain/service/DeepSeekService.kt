@@ -10,11 +10,12 @@ import com.thehan.dailyspeak.domain.model.ReferenceAnswers
 /**
  * DeepSeek-backed generation and coaching contract.
  *
- * The concrete client reads the API key and model name at runtime. The model
- * name is deliberately not hard-coded because available DeepSeek models change
- * over time and must follow the official documentation.
+ * The concrete client reads the API key and model name at runtime. Model IDs
+ * are loaded from the official /models endpoint instead of being hard-coded.
  */
 interface DeepSeekService {
+    suspend fun listModels(apiKey: String? = null): List<String>
+
     suspend fun generateDailyQuestions(
         date: String,
         count: Int,

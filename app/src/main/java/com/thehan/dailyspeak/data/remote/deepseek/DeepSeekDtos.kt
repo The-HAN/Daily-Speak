@@ -38,6 +38,20 @@ data class ChatResponseMessage(
 )
 
 @Serializable
+data class DeepSeekModelsResponse(
+    @SerialName("object") val objectType: String = "list",
+    val data: List<DeepSeekModelInfo>? = emptyList(),
+)
+
+@Serializable
+data class DeepSeekModelInfo(
+    val id: String = "",
+    @SerialName("object") val objectType: String = "model",
+    val created: Long = 0L,
+    @SerialName("owned_by") val ownedBy: String = "",
+)
+
+@Serializable
 data class DeepSeekErrorResponse(
     val error: DeepSeekError? = null,
 )

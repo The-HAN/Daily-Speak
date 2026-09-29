@@ -24,7 +24,7 @@ Core: Audio / Speech / TTS / DI
 ## 3. 当前实现
 
 - `QuestionRepository`：`OfflineFirstQuestionRepository` 首次启动写入原创本地题库，之后按日期、难度和话题稳定选题。
-- `SettingsRepository`：`DataStoreSettingsRepository` 持久化每日题量、难度、口音、话题、提醒开关、提醒时间、API Key、模型名称覆盖值、语音识别服务选择和背景配置。
+- `SettingsRepository`：`DataStoreSettingsRepository` 持久化每日题量、难度、口音、话题、提醒开关、提醒时间、API Key、已选择的模型、语音识别服务选择和背景配置。
 - `AttemptRepository`：`RoomAttemptRepository` 保存录音记录和转写。
 - `FeedbackRepository`：`RoomFeedbackRepository` 保存并读取反馈。
 - `FavoriteRepository`：`RoomFavoriteRepository` 管理题目收藏。
@@ -36,7 +36,7 @@ Core: Audio / Speech / TTS / DI
 - `SpeechRecognizerCatalog`：通过 `PackageManager` 查询已安装的 `RecognitionService`，并检测设备端识别能力。
 - `AppBackground`：渲染低饱和渐变预设或本地 `content://` 背景图片，并用 scrim 保证文字可读性。
 - `DailyReminderScheduler`：使用系统 `AlarmManager` 调度每日本地通知，`ReminderBootstrapper` 在启动、更新或开机后从 DataStore 恢复调度；Android 13+ 仅在用户授予通知权限后开启提醒。
-- `DeepSeekService`：`DeepSeekServiceImpl` 封装动态出题、翻译、参考回答、答案评价和改善建议请求；今日页和反馈页仅在用户明确确认后按需调用，失败时保留本地数据。
+- `DeepSeekService`：`DeepSeekServiceImpl` 封装官方 `/models` 模型列表、动态出题、翻译、参考回答、答案评价和改善建议请求；问句生成按每批最多 5 题调用，避免单次大响应触发超时；今日页和反馈页仅在用户明确确认后按需调用，失败时保留本地数据。
 - Hilt 模块：`DatabaseModule`、`RepositoryModule`、`SettingsModule`、`AudioModule`、`SpeechModule`、`NetworkModule`。
 - 数据库当前使用 `fallbackToDestructiveMigration(dropAllTables = true)`；schema 已导出，正式发布前必须补 Migration。
 
@@ -71,6 +71,7 @@ flowchart LR
 
 ```kotlin
 interface DeepSeekService {
+    suspend fun listModels(apiKey: String? = null): List<String>
     suspend fun generateDailyQuestions(
         date: String,
         count: Int,
@@ -102,9 +103,9 @@ Today/Feedback UI 当前遵循以下顺序：
 
 1. 优先读取 Room 缓存和本地题库。
 2. 只有用户主动启用云端 AI 并确认发送内容后，才调用 DeepSeek。
-3. API Key 和模型名均优先从 DataStore 覆盖值读取；未配置时回退到 `BuildConfig`。
+3. API Key 和模型均优先从 DataStore 读取；未配置时回退到 `BuildConfig`，模型列表通过官方 `/models` 接口获取。
 4. 网络失败时保留本地 Attempt 和本地反馈，不清空用户数据。
-5. 不把 `deepseek-v4.1-flash` 等未确认名称写入源码；必须以 DeepSeek 官方文档和真实联调结果为准。
+5. 不把未出现在官方 `/models` 返回结果中的模型名写入源码；模型 ID 由用户从接口返回的列表中选择。
 
 ## 6. 语音链路约束
 
@@ -130,6 +131,7 @@ Android `SpeechRecognizer` 的基础公开 API 不提供所有设备都可用的
 - `local.properties` 与 DataStore 中的 Key 均不得写入日志。
 - 正式版应将 API Key 迁移到 Android Keystore 加密存储。
 - 网络题库只保存授权内容或必要的摘要/链接，不保存侵权完整内容。
+- DeepSeek 请求使用 200 秒总调用上限和 180 秒读超时；AI 出题按批次拆分，降低多题生成超时概率。
 - 构建产物、本地 SDK、Gradle 缓存和 `local.properties` 不提交到 Git。
 
 ## 8. 每日提醒数据流

@@ -11,13 +11,14 @@ import com.thehan.dailyspeak.domain.model.PracticeLevel
 import com.thehan.dailyspeak.domain.model.SpeechRecognizerMode
 import com.thehan.dailyspeak.domain.model.UserSettings
 import com.thehan.dailyspeak.domain.repository.SettingsRepository
+import com.thehan.dailyspeak.domain.service.DeepSeekService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -26,6 +27,11 @@ data class ProfileUiState(
     val settings: UserSettings = UserSettings(),
     val speechRecognizerServices: List<SpeechRecognizerServiceInfo> = emptyList(),
     val isOnDeviceRecognitionAvailable: Boolean = false,
+    val availableModels: List<String> = emptyList(),
+    val isLoadingModels: Boolean = false,
+    val hasAttemptedModelLoad: Boolean = false,
+    val modelLoadMessage: String? = null,
+    val modelLoadError: String? = null,
 )
 
 @HiltViewModel
@@ -33,6 +39,7 @@ class ProfileViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val reminderScheduler: DailyReminderScheduler,
     private val speechRecognizerCatalog: SpeechRecognizerCatalog,
+    private val deepSeekService: DeepSeekService,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
@@ -105,7 +112,50 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun saveDeepSeekModel(model: String) {
-        viewModelScope.launch { settingsRepository.setDeepSeekModel(model) }
+        viewModelScope.launch {
+            settingsRepository.setDeepSeekModel(model)
+            _uiState.update { it.copy(modelLoadError = null) }
+        }
+    }
+
+    fun loadDeepSeekModels(apiKey: String) {
+        if (_uiState.value.isLoadingModels) return
+        val normalizedKey = apiKey.trim()
+        _uiState.update {
+            it.copy(
+                isLoadingModels = true,
+                hasAttemptedModelLoad = true,
+                modelLoadMessage = null,
+                modelLoadError = null,
+            )
+        }
+        viewModelScope.launch {
+            runCatching {
+                if (normalizedKey.isNotBlank()) {
+                    settingsRepository.setDeepSeekApiKey(normalizedKey)
+                }
+                deepSeekService.listModels(normalizedKey.ifBlank { null })
+            }.onSuccess { models ->
+                _uiState.update {
+                    it.copy(
+                        isLoadingModels = false,
+                        availableModels = models,
+                        modelLoadMessage = if (models.isEmpty()) {
+                            "接口连接成功，但没有返回可用模型。"
+                        } else {
+                            "已读取 ${models.size} 个可用模型，点击下方模型即可保存。"
+                        },
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoadingModels = false,
+                        modelLoadError = error.message ?: "读取模型列表失败，请稍后重试。",
+                    )
+                }
+            }
+        }
     }
 
     fun setTtsEnabled(enabled: Boolean) {

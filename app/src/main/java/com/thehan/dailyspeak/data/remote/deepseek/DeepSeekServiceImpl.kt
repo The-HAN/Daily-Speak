@@ -20,6 +20,9 @@ class DeepSeekServiceImpl @Inject constructor(
     private val remoteDataSource: DeepSeekRemoteDataSource,
     private val json: Json,
 ) : DeepSeekService {
+    override suspend fun listModels(apiKey: String?): List<String> =
+        remoteDataSource.listModels(apiKey)
+
     override suspend fun generateDailyQuestions(
         date: String,
         count: Int,
@@ -27,15 +30,59 @@ class DeepSeekServiceImpl @Inject constructor(
         topics: List<String>,
     ): List<Question> {
         val requestedCount = count.coerceIn(1, 20)
+        val generated = mutableListOf<Question>()
+        var batchIndex = 0
+
+        while (generated.size < requestedCount && batchIndex < MAX_BATCHES) {
+            val remaining = requestedCount - generated.size
+            val batchCount = minOf(MAX_QUESTIONS_PER_REQUEST, remaining)
+            val batch = generateQuestionBatch(
+                date = date,
+                count = batchCount,
+                level = level,
+                topics = topics,
+                batchIndex = batchIndex,
+                existingQuestions = generated.map { it.englishQuestion },
+            )
+
+            val knownQuestions = generated
+                .map { it.englishQuestion.questionKey() }
+                .toMutableSet()
+            val freshQuestions = batch
+                .filter { knownQuestions.add(it.englishQuestion.questionKey()) }
+                .take(remaining)
+
+            if (freshQuestions.isEmpty()) break
+            generated += freshQuestions
+            batchIndex++
+        }
+
+        return generated
+    }
+
+    private suspend fun generateQuestionBatch(
+        date: String,
+        count: Int,
+        level: PracticeLevel,
+        topics: List<String>,
+        batchIndex: Int,
+        existingQuestions: List<String>,
+    ): List<Question> {
         val generationNonce = UUID.randomUUID().toString()
+        val avoidText = existingQuestions
+            .takeLast(20)
+            .joinToString(" | ") { it.replace('\n', ' ').take(160) }
+            .ifBlank { "无" }
         val raw = remoteDataSource.complete(
             systemPrompt = QUESTION_SYSTEM_PROMPT,
             userPrompt = buildString {
                 appendLine("日期：$date")
-                appendLine("题量：$requestedCount")
+                appendLine("批次：${batchIndex + 1}")
+                appendLine("本批题量：$count")
                 appendLine("难度：${level.toPromptValue()}")
                 appendLine("话题偏好：${topics.ifEmpty { listOf("不限") }.joinToString("、")}")
                 appendLine("随机生成标识：$generationNonce")
+                appendLine("已使用问句（不得重复或改写为近似句）：$avoidText")
                 appendLine("要求：本次必须生成新的原创问句，避免复用常见模板；同批题目之间不得重复。")
                 appendLine()
                 appendLine("只返回 JSON，不要解释，不要 Markdown：")
@@ -43,22 +90,21 @@ class DeepSeekServiceImpl @Inject constructor(
                     """{"questions":[{"englishQuestion":"...","chineseMeaning":"...","topic":"...","difficulty":"DAILY 或 POSTGRADUATE","keyPhrases":["..."],"referenceAnswers":{"daily":"...","advanced":"...","postgraduate":"..."}}]}""",
                 )
             },
-            temperature = 0.85,
+            temperature = 0.9,
         )
         val payload = decode(
             raw = raw,
             serializer = QuestionsEnvelope.serializer(),
         )
         return payload.questions
-            .take(requestedCount)
+            .take(count)
             .mapIndexed { index, item ->
-                val difficulty = item.difficulty.toPracticeLevel()
                 Question(
-                    id = "deepseek-$date-${index}-${item.englishQuestion.hashCode().toString().replace('-', 'n')}",
+                    id = "deepseek-$date-$batchIndex-$index-${item.englishQuestion.hashCode().toString().replace('-', 'n')}",
                     englishQuestion = item.englishQuestion.trim(),
                     chineseMeaning = item.chineseMeaning.trim(),
                     topic = item.topic.trim().ifBlank { "综合" },
-                    difficulty = difficulty,
+                    difficulty = item.difficulty.toPracticeLevel(),
                     source = FeedbackSource.DEEPSEEK,
                     keyPhrases = item.keyPhrases.map(String::trim).filter(String::isNotBlank).distinct(),
                     referenceAnswers = ReferenceAnswers(
@@ -71,7 +117,6 @@ class DeepSeekServiceImpl @Inject constructor(
             }
             .filter { it.englishQuestion.isNotBlank() }
     }
-
     override suspend fun translateQuestion(question: Question): String {
         val raw = remoteDataSource.complete(
             systemPrompt = TRANSLATION_SYSTEM_PROMPT,
@@ -194,6 +239,9 @@ class DeepSeekServiceImpl @Inject constructor(
         return cleaned.substring(start, end + 1)
     }
 
+    private fun String.questionKey(): String =
+        trim().lowercase().replace(Regex("\\s+"), " ")
+
     private fun List<String>.clean(): List<String> =
         map(String::trim).filter(String::isNotBlank).distinct()
 
@@ -259,6 +307,9 @@ class DeepSeekServiceImpl @Inject constructor(
     )
 
     private companion object {
+        const val MAX_QUESTIONS_PER_REQUEST = 5
+        const val MAX_BATCHES = 4
+
         const val QUESTION_SYSTEM_PROMPT =
             "你是考研英语口语教练。题目必须原创、可口语作答、避免敏感或侵权内容；每次请求都应主动变化问法和话题切入点。严格输出用户要求的 JSON。"
         const val TRANSLATION_SYSTEM_PROMPT =

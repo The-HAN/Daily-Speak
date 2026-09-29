@@ -8,12 +8,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +26,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,6 +43,7 @@ import com.thehan.dailyspeak.domain.model.PracticeTopics
 import com.thehan.dailyspeak.domain.model.SpeechRecognizerMode
 import com.thehan.dailyspeak.domain.model.UserSettings
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 @Composable
 fun ProfileScreen(
@@ -53,6 +58,7 @@ fun ProfileScreen(
     onReminderTimeChange: (String) -> Unit,
     onSaveApiKey: (String) -> Unit,
     onSaveModel: (String) -> Unit,
+    onLoadModels: (String) -> Unit,
     onTtsEnabledChange: (Boolean) -> Unit,
     onSpeechRecognizerModeChange: (SpeechRecognizerMode) -> Unit,
     onSpeechRecognizerServiceChange: (String) -> Unit,
@@ -377,41 +383,28 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
         SettingsCard(title = "DeepSeek API") {
-            var modelDraft by rememberSaveable(settings.deepSeekModel) {
-                mutableStateOf(settings.deepSeekModel)
+            var apiKeyDraft by rememberSaveable(settings.deepSeekApiKey) {
+                mutableStateOf(settings.deepSeekApiKey)
             }
-            var apiKeyDraft by rememberSaveable { mutableStateOf("") }
-            OutlinedTextField(
-                value = modelDraft,
-                onValueChange = { modelDraft = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("模型名称") },
-                placeholder = { Text("请输入 DeepSeek 官方模型 ID") },
-                supportingText = {
-                    Text(
-                        text = when {
-                            modelDraft.isNotBlank() -> "当前使用 App 内配置的模型。"
-                            buildConfigModel.isNotBlank() -> "当前使用构建配置：$buildConfigModel"
-                            else -> "尚未配置模型；请按 DeepSeek 官方文档填写。"
-                        },
-                    )
-                },
-                singleLine = true,
-            )
-            Button(
-                onClick = { onSaveModel(modelDraft) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp),
-            ) {
-                Text(if (modelDraft.isBlank()) "清除 App 内模型配置" else "保存模型")
+            val apiKeyPreview = apiKeyDraft
+                .trim()
+                .takeIf { it.length >= 8 }
+                ?.let { "${it.take(3)}…${it.takeLast(4)}" }
+            val selectedModel = settings.deepSeekModel.ifBlank { buildConfigModel }
+
+            LaunchedEffect(apiKeyDraft) {
+                delay(600)
+                val normalized = apiKeyDraft.trim()
+                if (normalized != settings.deepSeekApiKey.trim()) {
+                    onSaveApiKey(normalized)
+                }
             }
-            HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp))
+
             Text(
                 text = if (hasBuildConfigApiKey) {
-                    "已从 local.properties 读取 API Key；下方可保存仅本机使用的覆盖值。"
+                    "已检测到构建配置 API Key，也可以在下方填写并保存仅本机使用的覆盖值。"
                 } else {
-                    "未检测到 BuildConfig API Key。可在 local.properties 或下方配置。"
+                    "请输入 DeepSeek API Key。保存后会从官方接口读取可用模型。"
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -421,27 +414,100 @@ fun ProfileScreen(
                 value = apiKeyDraft,
                 onValueChange = { apiKeyDraft = it },
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text("API Key 覆盖值") },
+                label = { Text("API Key") },
                 placeholder = { Text("sk-...") },
                 visualTransformation = PasswordVisualTransformation(),
+                supportingText = {
+                    Text(
+                        when {
+                            apiKeyPreview != null -> "已保存到本机：$apiKeyPreview"
+                            hasBuildConfigApiKey -> "当前使用 local.properties 中的 API Key。"
+                            else -> "仅保存在本机 DataStore 中，不会写入日志或代码。"
+                        },
+                    )
+                },
                 singleLine = true,
             )
             Button(
-                onClick = { onSaveApiKey(apiKeyDraft) },
+                onClick = { onLoadModels(apiKeyDraft) },
+                enabled = !uiState.isLoadingModels &&
+                    (apiKeyDraft.isNotBlank() || hasBuildConfigApiKey),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 10.dp),
             ) {
-                Text(if (apiKeyDraft.isBlank()) "清除覆盖值" else "保存到本机")
+                if (uiState.isLoadingModels) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("正在读取模型…")
+                } else {
+                    Text("保存并读取可用模型")
+                }
             }
+
+            uiState.modelLoadMessage?.let { message ->
+                Text(
+                    text = message,
+                    modifier = Modifier.padding(top = 10.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            uiState.modelLoadError?.let { error ->
+                Text(
+                    text = error,
+                    modifier = Modifier.padding(top = 10.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
+            if (uiState.availableModels.isNotEmpty()) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 14.dp))
+                Text(
+                    text = "可用模型",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                uiState.availableModels.forEach { model ->
+                    FilterChip(
+                        selected = settings.deepSeekModel == model,
+                        onClick = { onSaveModel(model) },
+                        label = {
+                            Text(
+                                text = model,
+                                maxLines = 1,
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = "MVP 使用 DataStore 保存；正式发布前应迁移到 Android Keystore 加密存储。",
-                modifier = Modifier.padding(top = 8.dp),
+                text = when {
+                    selectedModel.isBlank() -> "尚未选择模型。读取模型列表后点击一个模型即可保存。"
+                    settings.deepSeekModel.isNotBlank() -> "当前模型：$selectedModel，已保存到本机。"
+                    else -> "当前使用构建配置模型：$selectedModel。"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "模型选择会自动保存；重新进入 App 后会继续使用上次选择。",
+                modifier = Modifier.padding(top = 4.dp),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-
         Spacer(modifier = Modifier.height(36.dp))
     }
 }

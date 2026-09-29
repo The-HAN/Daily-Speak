@@ -7,7 +7,7 @@ Daily-Speak 是一个以“每日一问 + 录音回答 + 反馈复习”为核�
 - 今日 / 复习 / 我的三页 Compose 底部导航，支持深色模式和边到边显示。
 - 今日题目从本地原创题库加载，按日期、难度和话题偏好进行随机轮换；同一天保持稳定，跨天自动变化。
 - Room 持久化题目、录音记录、反馈和收藏。
-- 我的页持久化每日题量、难度、口音、话题、提醒时间、TTS 开关、DeepSeek API Key 和模型名称覆盖值。
+- 我的页持久化每日题量、难度、口音、话题、提醒时间、TTS 开关、DeepSeek API Key 和已选择的模型；重新进入 App 后不会重置。
 - 我的页可开启每日提醒；Android 13+ 会请求通知权限，使用系统 AlarmManager 在设定时间发送本地通知，重启后自动恢复调度。
 - 请求 `RECORD_AUDIO` 权限后使用 `MediaRecorder` 录音，并保存 `.m4a` 到应用私有目录。
 - Android 13+ 文件来源 `SpeechRecognizer` 适配器；识别失败会返回明确错误，不会伪造 transcript。
@@ -17,13 +17,14 @@ Daily-Speak 是一个以“每日一问 + 录音回答 + 反馈复习”为核�
 - 问句与参考回答改用媒体音频通道朗读；初始化、语言包缺失和播放失败会显示可恢复提示。
 - “我的”页可选择系统默认、设备端或已安装的指定语音识别服务。
 - “我的”页提供差异更明显的低中饱和预设背景，也可从系统文件选择器选择本地图片作为背景；图片不上传。
-- 今日页支持在用户确认后调用 DeepSeek 动态出题，并将结果缓存到 Room。
+- 今日页支持在用户确认后调用 DeepSeek 动态出题，并将结果缓存到 Room；多题生成按每批 5 题请求，OkHttp 读超时延长到 180 秒，避免默认 10 秒超时中断。
 - 反馈页支持在用户确认后发送转写文本和本地评分，生成 AI 改善建议；录音文件不会上传。
+- “我的 → DeepSeek API”会调用官方 `/models` 接口读取可用模型，用户从列表中选择；API Key 和模型选择都会保存到 DataStore，重新进入 App 后不会重置。
 - 复习页支持低分题、收藏题、历史记录以及日期、话题、难度筛选。
 
 ## 尚未接入或仍需完善
 
-- DeepSeek 的动态出题和反馈建议已接入 UI 编排，模型名可在 App 内修改，但模型 ID、接口路径和请求格式仍需以官方文档和真实账号联调结果为准。
+- DeepSeek 的动态出题和反馈建议已接入 UI 编排；模型列表通过官方 `/models` 接口读取，仍建议用真实账号验证限额、可用模型和响应时延。
 - Android `SpeechRecognizer` 的音频文件来源能力依赖 Android 13+ 和具体识别服务；可在“我的 → 语音识别服务”切换服务。
 - 默认发音评分是粗略估算，不宣称为音素级评测；云端评测接口仍待实现。
 - 连续打卡计算、数据导出/清除尚未实现；每日提醒已接入，通知权限和系统省电策略需按实际系统环境确认。
@@ -68,7 +69,7 @@ sdk.dir=D:/github/The-HAN/Daily-speak/.tooling/android-sdk
 
 DEEPSEEK_API_KEY=
 DEEPSEEK_BASE_URL=https://api.deepseek.com/
-# 必须填写 DeepSeek 官方文档确认可用的模型名
+# 可选的默认模型；App 内模型选择优先
 DEEPSEEK_MODEL=
 ```
 
@@ -77,12 +78,12 @@ API Key 有两种来源：
 1. `local.properties` 中的 `DEEPSEEK_API_KEY`，构建时注入 `BuildConfig`。
 2. “我的”页保存的本机覆盖值，优先于 `BuildConfig`。
 
-Model Name 也支持两种来源：
+模型也支持两种来源：
 
 1. `local.properties` 中的 `DEEPSEEK_MODEL`，构建时注入 `BuildConfig`。
-2. “我的 → DeepSeek API → 模型名称”保存的本机覆盖值，优先于 `BuildConfig`。
+2. “我的 → DeepSeek API → 可用模型”中选择的模型，保存到本机 DataStore 并优先于 `BuildConfig`。
 
-代码中不保存真实 API Key，不把 Authorization 写入日志。模型名不在源码中写死。
+代码中不硬编码真实 API Key，不把 Authorization 写入日志。模型 ID 不在源码中写死，由官方 `/models` 接口返回并由用户选择。
 
 ## 构建与测试
 
@@ -116,7 +117,7 @@ D:\github\The-HAN\Daily-speak\.tooling\daily-speak-release.properties
 属性名称为 `storeFile`、`storePassword`、`keyAlias` 和 `keyPassword`。密钥和凭据不进入 Git；如果本机没有该文件，`assembleRelease` 仍可构建未签名产物，但不能用于正常分发。最新版本的已签名 APK 位于：
 
 ```text
-dist\Daily-Speak-v0.4.0.apk
+dist\Daily-Speak-v0.5.0.apk
 ```
 
 ## Android 设备安装与运行
@@ -126,7 +127,7 @@ dist\Daily-Speak-v0.4.0.apk
 3. 安装：`adb install -r app\build\outputs\apk\debug\app-debug.apk`。
 4. 首次录音时允许麦克风权限。
 5. 在“我的”页调整每日题量、难度和话题，返回“今日”页确认题目重新加载。
-6. 在“我的 → DeepSeek API”填写官方模型 ID，并确认 App 内配置优先于构建配置。
+6. 在“我的 → DeepSeek API”填写 API Key，点击“保存并读取可用模型”，然后从列表中点击选择模型。
 7. 连续打开 App 确认同一天题目保持一致；修改系统日期或等待次日，确认默认题组发生轮换。
 8. 在“我的”页开启每日提醒；Android 13+ 允许通知权限，将提醒时间设置为数分钟后的未来时间，锁屏等待本地通知。
 9. 检查浅色、深色、五种预设背景、字体放大和边到边布局是否无遮挡。
@@ -134,7 +135,7 @@ dist\Daily-Speak-v0.4.0.apk
 
 ## 安装 Release APK
 
-1. 从 GitHub Release 下载 `Daily-Speak-v0.4.0.apk`，或使用仓库本地 `dist` 目录中的同一文件。
+1. 从 GitHub Release 下载 `Daily-Speak-v0.5.0.apk`，或使用仓库本地 `dist` 目录中的同一文件。
 2. 在手机上进入“设置 → 安全 → 安装未知应用”，允许当前浏览器或文件管理器安装。
 3. 点击 APK 并按系统提示安装。
 4. 首次录音授权麦克风；Android 13+ 开启提醒时授权通知。
