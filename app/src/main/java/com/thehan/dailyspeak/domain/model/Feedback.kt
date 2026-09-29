@@ -32,5 +32,6 @@ data class Feedback(
 
 object FeedbackSource {
     const val LOCAL = "local"
+    const val LOCAL_TRANSCRIPT = "local_transcript"
     const val DEEPSEEK = "deepseek"
 }

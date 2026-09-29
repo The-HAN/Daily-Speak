@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.thehan.dailyspeak.core.audio.AudioRecorder
 import com.thehan.dailyspeak.core.audio.RecordingFileStore
+import com.thehan.dailyspeak.domain.coach.LocalContentFeedbackGenerator
 import com.thehan.dailyspeak.domain.model.Attempt
 import com.thehan.dailyspeak.domain.model.Feedback
 import com.thehan.dailyspeak.domain.model.FeedbackSource
+import com.thehan.dailyspeak.domain.model.PronunciationScore
 import com.thehan.dailyspeak.domain.model.Question
 import com.thehan.dailyspeak.domain.model.UserSettings
 import com.thehan.dailyspeak.domain.repository.AttemptRepository
@@ -82,6 +84,7 @@ class TodayViewModel @Inject constructor(
     private val recordingFileStore: RecordingFileStore,
     private val speechRecognizerService: SpeechRecognizerService,
     private val pronunciationEvaluator: PronunciationEvaluator,
+    private val localContentFeedbackGenerator: LocalContentFeedbackGenerator,
     private val ttsService: TtsService,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(TodayUiState())
@@ -322,6 +325,24 @@ class TodayViewModel @Inject constructor(
         }
 
         val result = recognition.getOrThrow()
+        val transcriptSaveResult = runCatching {
+            attemptRepository.updateTranscript(pending.attemptId, result.transcript)
+        }
+        if (transcriptSaveResult.isFailure) {
+            _uiState.update { state ->
+                state.copy(
+                    recorder = state.recorder.copy(
+                        isProcessing = false,
+                        savedAttemptId = pending.attemptId,
+                        statusMessage = "转写已完成，但保存到本机失败。",
+                        errorMessage = transcriptSaveResult.exceptionOrNull()?.message
+                            ?: "转写保存失败，请重试。",
+                    ),
+                )
+            }
+            return
+        }
+
         val scoreResult = runCatching {
             when (val evaluator = pronunciationEvaluator) {
                 is TranscriptAwarePronunciationEvaluator -> evaluator.evaluate(
@@ -337,25 +358,20 @@ class TodayViewModel @Inject constructor(
                 )
             }
         }
-
-        if (scoreResult.isFailure) {
-            _uiState.update { state ->
-                state.copy(
-                    recorder = state.recorder.copy(
-                        isProcessing = false,
-                        savedAttemptId = pending.attemptId,
-                        statusMessage = "转写已完成，但发音评分失败。",
-                        errorMessage = scoreResult.exceptionOrNull()?.message
-                            ?: "发音评分失败，请重试。",
-                    ),
-                )
-            }
-            return
+        val score = scoreResult.getOrElse { error ->
+            buildTranscriptOnlyScore(
+                transcript = result.transcript,
+                recognitionConfidence = result.confidence,
+                durationMs = pending.durationMs,
+                errorMessage = error.message,
+            )
         }
+        val contentFeedback = localContentFeedbackGenerator.generate(
+            question = pending.question,
+            transcript = result.transcript,
+        )
 
         runCatching {
-            attemptRepository.updateTranscript(pending.attemptId, result.transcript)
-            val score = scoreResult.getOrThrow()
             feedbackRepository.save(
                 Feedback(
                     attemptId = pending.attemptId,
@@ -365,9 +381,19 @@ class TodayViewModel @Inject constructor(
                     prosody = score.prosody,
                     overall = score.overall,
                     pronunciationIssues = score.issues,
-                    betterAnswer = pending.question.referenceAnswers.advanced,
-                    overallComment = score.note,
-                    source = FeedbackSource.LOCAL,
+                    grammarSuggestions = contentFeedback.grammarSuggestions,
+                    vocabularySuggestions = contentFeedback.vocabularySuggestions,
+                    logicSuggestions = contentFeedback.logicSuggestions,
+                    naturalExpressionSuggestions = contentFeedback.naturalExpressionSuggestions,
+                    betterAnswer = contentFeedback.betterAnswer
+                        .ifBlank { pending.question.referenceAnswers.advanced },
+                    overallComment = contentFeedback.overallComment
+                        .ifBlank { score.note },
+                    source = if (scoreResult.isFailure) {
+                        FeedbackSource.LOCAL_TRANSCRIPT
+                    } else {
+                        FeedbackSource.LOCAL
+                    },
                     createdAtEpochMillis = System.currentTimeMillis(),
                 ),
             )
@@ -379,7 +405,11 @@ class TodayViewModel @Inject constructor(
                         isProcessing = false,
                         savedAttemptId = pending.attemptId,
                         processedAttemptId = pending.attemptId,
-                        statusMessage = "分析完成，正在打开反馈。",
+                        statusMessage = if (scoreResult.isFailure) {
+                            "转写和文本建议已生成，正在打开反馈。"
+                        } else {
+                            "分析完成，正在打开反馈。"
+                        },
                         errorMessage = null,
                     ),
                 )
@@ -390,12 +420,50 @@ class TodayViewModel @Inject constructor(
                     recorder = state.recorder.copy(
                         isProcessing = false,
                         savedAttemptId = pending.attemptId,
-                        statusMessage = "本地分析结果保存失败。",
+                        statusMessage = "转写已保存，但文字建议保存失败。",
                         errorMessage = error.message ?: "反馈保存失败。",
                     ),
                 )
             }
         }
+    }
+
+    private fun buildTranscriptOnlyScore(
+        transcript: String,
+        recognitionConfidence: Float?,
+        durationMs: Long,
+        errorMessage: String?,
+    ): PronunciationScore {
+        val wordCount = ENGLISH_WORD_REGEX.findAll(transcript).count()
+        val durationSeconds = (durationMs / 1_000f).coerceAtLeast(1f)
+        val wordsPerMinute = wordCount * 60f / durationSeconds
+        val confidenceScore = recognitionConfidence?.times(100f) ?: 0f
+        val transcriptScore = (wordCount / 20f * 100f).coerceIn(0f, 100f)
+        val fluency = when {
+            wordCount == 0 -> 0f
+            wordsPerMinute < 80f -> (wordsPerMinute / 80f * 100f).coerceIn(0f, 100f)
+            wordsPerMinute > 190f -> (100f - (wordsPerMinute - 190f)).coerceIn(0f, 100f)
+            else -> 100f
+        }
+
+        return PronunciationScore(
+            accuracy = confidenceScore,
+            fluency = fluency,
+            completeness = transcriptScore,
+            prosody = 0f,
+            overall = (
+                confidenceScore * 0.35f +
+                    fluency * 0.25f +
+                    transcriptScore * 0.20f
+                ).coerceIn(0f, 100f),
+            recognitionConfidence = recognitionConfidence,
+            issues = listOf(
+                "本次音频特征评分未完成，已保留语音转写并生成文本初筛建议。",
+                errorMessage?.takeIf(String::isNotBlank)?.let { "评分信息：$it" }
+                    ?: "可点击“重试转写与评分”重新分析。",
+            ),
+            note = "本次未获得完整发音评分，以下内容仅依据语音转写文本分析。",
+        )
     }
 
     private suspend fun saveAttempt(
@@ -483,4 +551,8 @@ class TodayViewModel @Inject constructor(
         val audioFile: File,
         val durationMs: Long,
     )
+
+    private companion object {
+        val ENGLISH_WORD_REGEX = Regex("[A-Za-z]+(?:'[A-Za-z]+)?")
+    }
 }

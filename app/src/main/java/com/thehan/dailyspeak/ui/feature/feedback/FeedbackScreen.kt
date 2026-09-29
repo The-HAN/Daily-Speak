@@ -217,6 +217,7 @@ private fun FeedbackContent(
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         QuestionHeroCard(question)
 
+        TranscriptAnalysisCard(attempt = attempt)
         ExpandableSection(title = "原句意思", subtitle = "中文理解") {
             Text(
                 text = question.chineseMeaning,
@@ -239,19 +240,6 @@ private fun FeedbackContent(
                 label = "考研版",
                 text = question.referenceAnswers.postgraduate,
                 onPlay = onPlayReferenceAnswer,
-            )
-        }
-
-        ExpandableSection(title = "你的回答", subtitle = "语音转写") {
-            Text(
-                text = attempt.transcript.ifBlank { "未识别到有效内容。" },
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = "录音时长：${formatDuration(attempt.durationMs)}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -377,6 +365,59 @@ private fun AiFeedbackAction(
     }
 }
 
+@Composable
+private fun TranscriptAnalysisCard(attempt: Attempt) {
+    val transcript = attempt.transcript.trim()
+    val wordCount = countEnglishWords(transcript)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        ),
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "语音转写分析",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "你的回答已记录，并转换为以下文字。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+            ) {
+                Text(
+                    text = transcript.ifBlank { "未识别到有效文字。请核对识别服务后重新录音。" },
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "录音时长 ${formatDuration(attempt.durationMs)} · 识别到 $wordCount 个英文单词",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "向下可查看发音评分和本地文本初筛；如需更具体的语法、词汇、逻辑与地道表达建议，可在“改善建议”中按需生成 AI 分析。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+        }
+    }
+}
 @Composable
 private fun QuestionHeroCard(question: Question) {
     Card(
@@ -681,6 +722,9 @@ private fun formatDuration(durationMs: Long): String {
     val totalSeconds = durationMs.coerceAtLeast(0L) / 1_000L
     return "%02d:%02d".format(Locale.US, totalSeconds / 60L, totalSeconds % 60L)
 }
+
+private fun countEnglishWords(text: String): Int =
+    Regex("[A-Za-z]+(?:'[A-Za-z]+)?").findAll(text).count()
 
 private fun PracticeLevel.displayName(): String = when (this) {
     PracticeLevel.DAILY -> "日常"
