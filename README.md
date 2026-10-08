@@ -38,28 +38,6 @@ Daily-Speak 是一个以“每日一问 + 录音回答 + 反馈复习”为核�
 - [架构设计](ARCHITECTURE.md)
 - [任务拆分](TASKS.md)
 
-## 依赖工具链位置
-
-Git 仓库位于：
-
-```text
-D:\github\The-HAN\Daily-speak\Daily-Speak
-```
-
-Android SDK、JDK、Android 用户目录和 Gradle 缓存位于 Git 仓库外的父目录：
-
-```text
-D:\github\The-HAN\Daily-speak\.tooling\
-├── android-sdk\
-├── android-user-home\
-├── gradle-user-home\
-├── gradle-project-cache\Daily-Speak\
-├── kotlin-project-cache\Daily-Speak\
-└── jdk-24\
-```
-
-这些目录不应提交到 Git。当前构建已验证可使用 JDK 24、Android SDK 36 和 Gradle Wrapper 8.14.3。
-
 ## 本地配置
 
 复制 `local.properties.example` 为 `local.properties`。该文件已被 `.gitignore` 忽略，不能提交。
@@ -84,41 +62,6 @@ API Key 有两种来源：
 2. “我的 → DeepSeek API → 可用模型”中选择的模型，保存到本机 DataStore 并优先于 `BuildConfig`。
 
 代码中不硬编码真实 API Key，不把 Authorization 写入日志。模型 ID 不在源码中写死，由官方 `/models` 接口返回并由用户选择。
-
-## 构建与测试
-
-推荐使用仓库内的脚本，由脚本自动把 JDK、Android SDK 和 Gradle 缓存指向仓库外父目录：
-
-```powershell
-Set-Location 'D:\github\The-HAN\Daily-speak\Daily-Speak'
-.\scripts\build.ps1
-```
-
-Debug APK 位于：
-
-```text
-app\build\outputs\apk\debug\app-debug.apk
-```
-
-脚本会主动清理 `ANDROID_PREFS_ROOT`，避免它与 `ANDROID_USER_HOME` 冲突；构建时即使出现 `C:\.android` 指标文件警告，也不影响 APK 产物。
-
-构建 Release APK：
-
-```powershell
-.\scripts\build.ps1 :app:assembleRelease
-```
-
-Release 签名配置默认从仓库外的以下文件读取：
-
-```text
-D:\github\The-HAN\Daily-speak\.tooling\daily-speak-release.properties
-```
-
-属性名称为 `storeFile`、`storePassword`、`keyAlias` 和 `keyPassword`。密钥和凭据不进入 Git；如果本机没有该文件，`assembleRelease` 仍可构建未签名产物，但不能用于正常分发。最新版本的已签名 APK 位于：
-
-```text
-dist\Daily-Speak-v0.5.0.apk
-```
 
 ## Android 设备安装与运行
 
